@@ -16,21 +16,15 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Install Tesseract OCR
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y tesseract-ocr
-        sudo apt-get install -y libtesseract-dev
-
     - name: Install Dependencies
       run: |
         python -m venv .venv
         source .venv/bin/activate
-        pip install telethon Pillow pytesseract==0.3.10 PyMuPDF python-docx PyPDF2
+        pip install telethon Pillow PyMuPDF python-docx PyPDF2
 
     - name: Set up Folder Structure
       run: |
-        mkdir -p Downloads/To_read Downloads/Organized_text Downloads/Newspapers Downloads/Highlights/Text_highlights
+        mkdir -p Downloads/Newspapers Downloads/Highlights/Text_highlights
 
     - name: Run Scripts
       env:
@@ -38,9 +32,6 @@ jobs:
       run: |
         source .venv/bin/activate
         python telegram_downloader.py
-        python extract_text.py
-        python organize_text.py
-        python get_articles.py
 
     - name: Save Artifacts
       uses: actions/upload-artifact@v4
