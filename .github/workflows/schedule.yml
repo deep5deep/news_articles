@@ -1,0 +1,49 @@
+name: Run Daily Scripts
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install Tesseract OCR
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tesseract-ocr
+        sudo apt-get install -y libtesseract-dev
+
+    - name: Install Dependencies
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install telethon Pillow pytesseract==0.3.10 PyMuPDF python-docx PyPDF2
+
+    - name: Set up Folder Structure
+      run: |
+        mkdir -p Downloads/To_read Downloads/Organized_text Downloads/Newspapers Downloads/Highlights/Text_highlights
+
+    - name: Run Scripts
+      env:
+        TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+      run: |
+        source .venv/bin/activate
+        python telegram_downloader.py
+        python extract_text.py
+        python organize_text.py
+        python get_articles.py
+
+    - name: Save Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: downloads
+        path: Downloads/
