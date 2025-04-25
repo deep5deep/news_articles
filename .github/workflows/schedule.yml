@@ -26,6 +26,10 @@ jobs:
       run: |
         mkdir -p $(date +%d-%m-%Y)
 
+    - name: Set date environment variable
+      id: vars
+      run: echo "date_dir=$(date +'%d-%m-%Y')" >> $GITHUB_OUTPUT
+
     - name: Run Scripts
       env:
         TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
@@ -37,4 +41,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: daily-articles
-        path: ${{ github.workspace }}/$(date +%d-%m-%Y)/
+        path: ${{ github.workspace }}/${{ steps.vars.outputs.date_dir }}/
