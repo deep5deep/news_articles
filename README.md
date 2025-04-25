@@ -64,4 +64,9 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
 ## Running the Workflow
 - The workflow runs automatically on the schedule above or can be triggered manually via GitHub Actions.
 
+## To Do:
+
+* Change email sender and email password in GitHub secrets
+* Check if we need to save as artifacts?
+
 ---
