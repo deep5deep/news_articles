@@ -7,11 +7,9 @@ import logging
 from telethon.errors import TimeoutError
 
 base_dir = os.getenv('GITHUB_WORKSPACE', '.')  # Use workspace directory or default to current directory
-downloads_dir = os.path.join(base_dir, 'Downloads')
-to_read_dir = os.path.join(downloads_dir, 'To_read')
-newspapers_dir = os.path.join(downloads_dir, 'Newspapers')
-highlights_dir = os.path.join(downloads_dir, 'Highlights')
-text_highlights_dir = os.path.join(highlights_dir, 'Text_highlights')
+today_str = datetime.now().strftime('%d-%m-%Y')
+dated_dir = os.path.join(base_dir, today_str)
+os.makedirs(dated_dir, exist_ok=True)
 
 # Configure logging
 logging.basicConfig(
@@ -23,10 +21,6 @@ logger = logging.getLogger(__name__)
 # API credentials
 api_id = 20197798
 api_hash = '109f16378f64be336b43eb678ea487df'
-
-# Create directories
-for path in [newspapers_dir, highlights_dir, text_highlights_dir]:
-    os.makedirs(path, exist_ok=True)
 
 # Channel and file configurations
 channels = [
@@ -69,10 +63,7 @@ channels = [
 async def download_file(client, message, target_filename, file_type, timeout=600):
     try:
         if message.file:
-            save_path = os.path.join(
-                highlights_dir if file_type == 'highlights' else newspapers_dir,
-                target_filename
-            )
+            save_path = os.path.join(dated_dir, target_filename)
             
             async def progress_callback(current, total):
                 percentage = (current/total)*100

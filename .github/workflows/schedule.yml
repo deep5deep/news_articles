@@ -24,7 +24,7 @@ jobs:
 
     - name: Set up Folder Structure
       run: |
-        mkdir -p Downloads/Newspapers Downloads/Highlights/Text_highlights
+        mkdir -p $(date +%d-%m-%Y)
 
     - name: Run Scripts
       env:
@@ -36,5 +36,5 @@ jobs:
     - name: Save Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: downloads
-        path: Downloads/
+        name: daily-articles
+        path: ${{ github.workspace }}/$(date +%d-%m-%Y)/
