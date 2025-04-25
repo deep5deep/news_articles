@@ -9,10 +9,10 @@ def send_email(folder):
     receiver = os.getenv('EMAIL_RECEIVER')
 
     msg = EmailMessage()
-    msg['Subject'] = 'Daily Telegram Files'
+    msg['Subject'] = 'Daily News Articles'
     msg['From'] = sender
     msg['To'] = receiver
-    msg.set_content("Attached are today's files.")
+    msg.set_content("Attached are today's news articles.")
 
     for file_name in os.listdir(folder):
         file_path = os.path.join(folder, file_name)

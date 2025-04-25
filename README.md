@@ -44,8 +44,22 @@ on:
 
 3. **Add Email Secrets (for automated delivery):**
     - `EMAIL_SENDER` – Sender's email address
-    - `EMAIL_PASSWORD` – App password for the sender's email
+    - `EMAIL_PASSWORD` – App password for the sender's email (see below)
     - `EMAIL_RECEIVER` – Recipient's email address
+
+### Setting up Gmail App Password for `EMAIL_PASSWORD`
+
+To use a Gmail account for sending emails via GitHub Actions, you must use an App Password (not your regular Gmail password):
+
+1. **Create an App Password**
+    - Go to your [Google Account Security settings](https://myaccount.google.com/security).
+    - Under "Signing in to Google," find **App passwords** (you may need to enable 2-Step Verification first).
+    - Under “Select app,” choose **Mail**.
+    - Under “Select device,” choose **Other (Custom name)**, and enter a name like `GitHub Actions News`.
+    - Click **Generate**.
+    - Copy the 16-character password provided.
+2. **Update your GitHub secret**
+    - In your repo’s **Settings → Secrets → Actions**, set `EMAIL_PASSWORD` to the new 16-character App Password.
 
 ## Running the Workflow
 - The workflow runs automatically on the schedule above or can be triggered manually via GitHub Actions.
