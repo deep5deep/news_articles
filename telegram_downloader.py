@@ -51,15 +51,15 @@ channels = [
         'type': 'highlights',
         'patterns': [
             {
-                'text_pattern': '#ToBeReadVajiram in The Indian Express: {date}',
+                'text_pattern': '#ToBeReadVajiram in The Indian Express: {date}\n(Delhi edition e-paper)',
                 'target_format': 'Indian_Express_{date}.jpg',
-                'date_format': '%-d/%-m/%Y',
+                'date_format': '%d/%m/%Y',
                 'target_date_format': '%d-%m-%Y'
             },
             {
-                'text_pattern': '#ToBeReadVajiram in The Hindu: {date}',
+                'text_pattern': '#ToBeReadVajiram in The Hindu: {date}\n(Delhi edition e-paper)',
                 'target_format': 'The_Hindu_{date}.jpg',
-                'date_format': '%-d/%-m/%Y',
+                'date_format': '%d/%m/%Y',
                 'target_date_format': '%d-%m-%Y'
             }
         ]
