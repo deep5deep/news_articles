@@ -26,10 +26,20 @@ api_hash = '109f16378f64be336b43eb678ea487df'
 channels = [
     {
         'username': '@csaccoep',
-        'source_format': 'INDIAN EXPRESS HD Delhi {date}.pdf',
-        'target_format': 'Indian_Express_{date}.pdf',
-        'date_format': '%d~%m~%Y',
-        'target_date_format': '%d-%m-%Y',
+        'files': [
+            {
+                'source_format': 'INDIAN EXPRESS HD Delhi {date}.pdf',
+                'target_format': 'Indian_Express_{date}.pdf',
+                'date_format': '%d~%m~%Y',
+                'target_date_format': '%d-%m-%Y'
+            },
+            {
+                'source_format': 'INDIAN EXPRESS UPSC IAS EDITION HD {date}.pdf',
+                'target_format': 'Indian_Express_UPSC_{date}.pdf',
+                'date_format': '%d~%m~%Y',
+                'target_date_format': '%d-%m-%Y'
+            }
+        ],
         'type': 'newspaper'
     },
     {
@@ -108,25 +118,25 @@ async def check_highlights_channel(client, channel):
 async def check_newspaper_channel(client, channel):
     try:
         today = datetime.now()
-        source_date = today.strftime(channel['date_format'])
-        target_date = today.strftime(channel['target_date_format'])
-        
-        source_filename = channel['source_format'].format(date=source_date)
-        target_filename = channel['target_format'].format(date=target_date)
-        
-        logger.info(f"Checking {channel['username']} for: {source_filename}")
-        
-        async for message in client.iter_messages(channel['username'], limit=50):
-            if (message.file and 
-                hasattr(message.file, 'name') and 
-                message.file.name and 
-                message.file.name.lower() == source_filename.lower()):
-                await download_file(client, message, target_filename, 'newspaper')
-                return True
-            await asyncio.sleep(0.5)
-        
-        logger.info(f"File not found in {channel['username']}")
-        return False
+        found_any = False
+        for file_conf in channel.get('files', []):
+            source_date = today.strftime(file_conf['date_format'])
+            target_date = today.strftime(file_conf['target_date_format'])
+            source_filename = file_conf['source_format'].format(date=source_date)
+            target_filename = file_conf['target_format'].format(date=target_date)
+            logger.info(f"Checking {channel['username']} for: {source_filename}")
+            async for message in client.iter_messages(channel['username'], limit=50):
+                if (message.file and 
+                    hasattr(message.file, 'name') and 
+                    message.file.name and 
+                    message.file.name.lower() == source_filename.lower()):
+                    await download_file(client, message, target_filename, 'newspaper')
+                    found_any = True
+                    break
+                await asyncio.sleep(0.5)
+            else:
+                logger.info(f"File not found in {channel['username']}: {source_filename}")
+        return found_any
     except Exception as e:
         logger.error(f"Error checking {channel['username']}: {e}")
         return False
