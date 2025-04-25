@@ -119,7 +119,16 @@ async def check_newspaper_channel(client, channel):
     try:
         today = datetime.now()
         found_any = False
-        for file_conf in channel.get('files', []):
+        file_confs = channel.get('files')
+        if not file_confs:
+            # Support single-file config for backward compatibility
+            file_confs = [{
+                'source_format': channel['source_format'],
+                'target_format': channel['target_format'],
+                'date_format': channel['date_format'],
+                'target_date_format': channel['target_date_format']
+            }]
+        for file_conf in file_confs:
             source_date = today.strftime(file_conf['date_format'])
             target_date = today.strftime(file_conf['target_date_format'])
             source_filename = file_conf['source_format'].format(date=source_date)
