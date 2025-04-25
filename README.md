@@ -9,6 +9,8 @@ Folder structure:
 ├── Indian_Express_<date>.jpg
 ├── The_Hindu_<date>.jpg
 
+The downloadable/uploaded artifact is now named after today's date (e.g., 25-04-2025)
+
 Steps:
 
 Run generate_session.py locally to get the string and put it in github secrets as TELEGRAM_SESSION_STRING
