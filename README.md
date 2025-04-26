@@ -67,6 +67,5 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
 ## To Do:
 
 * Change email sender and email password in GitHub secrets
-* Check if we need to save as artifacts?
-
+* Upload it to Google Drive
 ---

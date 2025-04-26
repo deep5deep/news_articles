@@ -42,11 +42,20 @@ channels = [
         ],
         'type': 'newspaper'
     },
+    # International Edition:
+    # {
+    #     'username': '@thevishwakalyansewarth',
+    #     'source_format': 'NEWS {date}.pdf',
+    #     'target_format': 'The_Hindu_{date}.pdf',
+    #     'date_format': '%d-%m-%Y',
+    #     'target_date_format': '%d-%m-%Y',
+    #     'type': 'newspaper'
+    # },
     {
-        'username': '@thevishwakalyansewarth',
-        'source_format': 'NEWS {date}.pdf',
+        'username': '@the_hindu_newspaper_free_pdf',
+        'source_format': 'THE HINDU UPSC IAS EDITION HD{date}.pdf',
         'target_format': 'The_Hindu_{date}.pdf',
-        'date_format': '%d-%m-%Y',
+        'date_format': '%d~%m~%Y',
         'target_date_format': '%d-%m-%Y',
         'type': 'newspaper'
     },
