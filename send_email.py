@@ -6,12 +6,21 @@ from datetime import datetime
 def send_email(folder):
     sender = os.getenv('EMAIL_SENDER')
     password = os.getenv('EMAIL_PASSWORD')
-    receiver = os.getenv('EMAIL_RECEIVER')
-
+    primary_receiver = os.getenv('EMAIL_RECEIVER')
+    
+    # Get additional receivers from environment variable
+    # Format should be comma-separated email addresses
+    additional_receivers = os.getenv('ADDITIONAL_EMAIL_RECEIVERS', '')
+    
+    # Create a list of all receivers
+    all_receivers = [primary_receiver]
+    if additional_receivers:
+        all_receivers.extend([email.strip() for email in additional_receivers.split(',')])
+    
     msg = EmailMessage()
     msg['Subject'] = 'Daily News Articles'
     msg['From'] = sender
-    msg['To'] = receiver
+    msg['To'] = ', '.join(all_receivers)
     msg.set_content("Attached are today's news articles.")
 
     for file_name in os.listdir(folder):

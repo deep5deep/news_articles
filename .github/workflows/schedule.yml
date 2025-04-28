@@ -50,6 +50,7 @@ jobs:
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        ADDITIONAL_EMAIL_RECEIVERS: ${{ secrets.ADDITIONAL_EMAIL_RECEIVERS }}
       run: |
         source .venv/bin/activate
         python send_email.py

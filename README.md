@@ -45,7 +45,8 @@ on:
 3. **Add Email Secrets (for automated delivery):**
     - `EMAIL_SENDER` – Sender's email address
     - `EMAIL_PASSWORD` – App password for the sender's email (see below)
-    - `EMAIL_RECEIVER` – Recipient's email address
+    - `EMAIL_RECEIVER` – Primary recipient's email address
+    - `ADDITIONAL_EMAIL_RECEIVERS` – (Optional) Comma-separated list of additional email recipients (e.g., "person1@example.com, person2@example.com")
 
 ### Setting up Gmail App Password for `EMAIL_PASSWORD`
 
