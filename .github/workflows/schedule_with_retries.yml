@@ -1,8 +1,8 @@
-name: Run Daily Newspaper Downloader
+name: Run Daily Newspaper Downloader (With Retries)
 
 on:
   schedule:
-    - cron: '30 5 * * *'  # Runs daily at 5:30 AM UTC
+    - cron: '35 5 * * *'  # Runs daily at 5:35 AM UTC (5 minutes after original version)
   workflow_dispatch:
     inputs:
       retry_attempt:
@@ -42,7 +42,7 @@ jobs:
 
     - name: Set up Folder Structure
       run: |
-        mkdir -p ${{ steps.date.outputs.date }}
+        mkdir -p ${{ steps.date.outputs.date }}_with_retries
 
     # Get the retry attempt number
     - name: Set attempt number
@@ -54,23 +54,23 @@ jobs:
         fi
         echo "number=$ATTEMPT" >> $GITHUB_OUTPUT
         echo "RETRY_COUNT=$((ATTEMPT - 1))" >> $GITHUB_ENV
-        echo "::notice::Running attempt $ATTEMPT for ${{ steps.date.outputs.date }}"
+        echo "::notice::Running attempt $ATTEMPT for ${{ steps.date.outputs.date }}_with_retries"
 
     # Restore cache from previous attempts
     - name: Restore Previous Downloads
       uses: actions/cache/restore@v4
       id: cache-restore
       with:
-        path: ${{ steps.date.outputs.date }}
-        key: newspapers-${{ steps.date.outputs.date }}-v2
+        path: ${{ steps.date.outputs.date }}_with_retries
+        key: newspapers-with-retries-${{ steps.date.outputs.date }}-v2
         restore-keys: |
-          newspapers-${{ steps.date.outputs.date }}-
+          newspapers-with-retries-${{ steps.date.outputs.date }}-
 
     # Check if we've already sent an email today
     - name: Check if email already sent
       id: email_check
       run: |
-        if [ -f "${{ steps.date.outputs.date }}/email_sent.txt" ]; then
+        if [ -f "${{ steps.date.outputs.date }}_with_retries/email_sent.txt" ]; then
           echo "::notice::Email was already sent today. Skipping this run."
           echo "already_sent=true" >> $GITHUB_OUTPUT
         else
@@ -81,7 +81,7 @@ jobs:
     - name: Exit if email already sent
       if: steps.email_check.outputs.already_sent == 'true'
       run: |
-        echo "Email was already sent for ${{ steps.date.outputs.date }}. Exiting workflow."
+        echo "Email was already sent for ${{ steps.date.outputs.date }}_with_retries. Exiting workflow."
         exit 0
 
     - name: Download Newspapers
@@ -91,22 +91,25 @@ jobs:
         RETRY_COUNT: ${{ env.RETRY_COUNT }}
       run: |
         source .venv/bin/activate
+        
+        # Temporarily modify the output directory in the script by setting an environment variable
+        export OUTPUT_DIR="${{ steps.date.outputs.date }}_with_retries"
         python telegram_downloader.py
         EXIT_CODE=$?
         
         # Check if all newspapers were downloaded (now expecting 3 newspapers)
-        if [ -f "${{ steps.date.outputs.date }}/download_status.json" ]; then
-          NEWSPAPER_COUNT=$(grep -o '"newspaper_count": [0-9]*' "${{ steps.date.outputs.date }}/download_status.json" | awk '{print $2}')
-          EXPECTED_COUNT=$(grep -o '"expected_count": [0-9]*' "${{ steps.date.outputs.date }}/download_status.json" | awk '{print $2}')
+        if [ -f "${{ steps.date.outputs.date }}_with_retries/download_status.json" ]; then
+          NEWSPAPER_COUNT=$(grep -o '"newspaper_count": [0-9]*' "${{ steps.date.outputs.date }}_with_retries/download_status.json" | awk '{print $2}')
+          EXPECTED_COUNT=$(grep -o '"expected_count": [0-9]*' "${{ steps.date.outputs.date }}_with_retries/download_status.json" | awk '{print $2}')
           
           echo "::notice::Downloaded $NEWSPAPER_COUNT out of $EXPECTED_COUNT newspapers in attempt ${{ steps.attempt.outputs.number }}"
           
           if [ "$NEWSPAPER_COUNT" -ge "$EXPECTED_COUNT" ]; then
             echo "all_newspapers=true" >> $GITHUB_OUTPUT
-            echo "SUCCESS: All $EXPECTED_COUNT newspapers downloaded" > "${{ steps.date.outputs.date }}/status.txt"
+            echo "SUCCESS: All $EXPECTED_COUNT newspapers downloaded" > "${{ steps.date.outputs.date }}_with_retries/status.txt"
           else
             echo "all_newspapers=false" >> $GITHUB_OUTPUT
-            echo "INCOMPLETE: Downloaded $NEWSPAPER_COUNT/$EXPECTED_COUNT newspapers" > "${{ steps.date.outputs.date }}/status.txt"
+            echo "INCOMPLETE: Downloaded $NEWSPAPER_COUNT/$EXPECTED_COUNT newspapers" > "${{ steps.date.outputs.date }}_with_retries/status.txt"
           fi
           echo "newspaper_count=$NEWSPAPER_COUNT" >> $GITHUB_OUTPUT
           echo "expected_count=$EXPECTED_COUNT" >> $GITHUB_OUTPUT
@@ -115,15 +118,15 @@ jobs:
           echo "all_newspapers=false" >> $GITHUB_OUTPUT
           echo "newspaper_count=0" >> $GITHUB_OUTPUT
           echo "expected_count=3" >> $GITHUB_OUTPUT
-          echo "ERROR: No status file created" > "${{ steps.date.outputs.date }}/status.txt"
+          echo "ERROR: No status file created" > "${{ steps.date.outputs.date }}_with_retries/status.txt"
         fi
 
     # Save cache for next attempts
     - name: Cache Downloads
       uses: actions/cache/save@v4
       with:
-        path: ${{ steps.date.outputs.date }}
-        key: newspapers-${{ steps.date.outputs.date }}-v2
+        path: ${{ steps.date.outputs.date }}_with_retries
+        key: newspapers-with-retries-${{ steps.date.outputs.date }}-v2
 
     # Only send email if this is the 3rd attempt or if all newspapers downloaded
     - name: Send Email
@@ -138,11 +141,16 @@ jobs:
         source .venv/bin/activate
         echo "::notice::Starting email delivery process with Dublin timestamp..."
         pip install pytz
+        
+        # Temporarily modify the folder in the script by setting an environment variable
+        export EMAIL_FOLDER="${{ steps.date.outputs.date }}_with_retries"
+        export EMAIL_SUBJECT_PREFIX="[WITH RETRIES] "
         python send_email.py
+        
         if [ $? -eq 0 ]; then
           echo "::notice::Email delivery process completed successfully"
           # Mark that we've sent the email to avoid duplicates
-          echo "Sent on $(date)" > "${{ steps.date.outputs.date }}/email_sent.txt"
+          echo "Sent on $(date)" > "${{ steps.date.outputs.date }}_with_retries/email_sent.txt"
         else
           echo "::error::Email delivery failed"
         fi
@@ -164,7 +172,7 @@ jobs:
           await github.rest.actions.createWorkflowDispatch({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            workflow_id: 'schedule_retry.yml',
+            workflow_id: 'schedule_retry_with_retries.yml',
             ref: context.ref,
             inputs: {
               retry_attempt: nextAttempt.toString(),
@@ -172,4 +180,4 @@ jobs:
             }
           });
           
-          console.log(`Next attempt (${nextAttempt}) scheduled via schedule_retry.yml workflow`);
+          console.log(`Next attempt (${nextAttempt}) scheduled via schedule_retry_with_retries.yml workflow`);
