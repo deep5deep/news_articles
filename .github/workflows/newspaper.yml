@@ -1,0 +1,290 @@
+name: Daily Newspaper Downloader
+
+on:
+  schedule:
+    - cron: '30 5 * * *'  # Runs daily at 5:30 AM UTC
+  workflow_dispatch:
+    inputs:
+      retry_attempt:
+        description: 'Retry attempt number (1, 2, or 3)'
+        required: false
+        default: '1'
+      environment:
+        description: 'Environment to run in (production or retry)'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - retry
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.environment }}" == "retry" ]]; then
+            echo "environment=retry" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_OUTPUT
+          fi
+          echo "Using environment: $(cat $GITHUB_OUTPUT | grep environment | cut -d'=' -f2)"
+
+  download-newspapers-production:
+    needs: determine-environment
+    if: needs.determine-environment.outputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
+
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%d-%m-%Y')" >> $GITHUB_OUTPUT
+
+    - name: Set up Folder Structure
+      run: |
+        mkdir -p ${{ steps.date.outputs.date }}
+
+    # Download Newspapers (Production)
+    - name: Download Newspapers
+      id: download
+      env:
+        TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+      run: |
+        source .venv/bin/activate
+        python telegram_downloader.py
+        EXIT_CODE=$?
+        
+        # Check if all newspapers were downloaded
+        if [ -f "${{ steps.date.outputs.date }}/download_status.json" ]; then
+          NEWSPAPER_COUNT=$(grep -o '"newspaper_count": [0-9]*' "${{ steps.date.outputs.date }}/download_status.json" | awk '{print $2}')
+          EXPECTED_COUNT=$(grep -o '"expected_count": [0-9]*' "${{ steps.date.outputs.date }}/download_status.json" | awk '{print $2}')
+          
+          echo "::notice::Downloaded $NEWSPAPER_COUNT out of $EXPECTED_COUNT newspapers"
+          
+          if [ "$NEWSPAPER_COUNT" -ge "$EXPECTED_COUNT" ]; then
+            echo "all_newspapers=true" >> $GITHUB_OUTPUT
+            echo "SUCCESS: All $EXPECTED_COUNT newspapers downloaded" > "${{ steps.date.outputs.date }}/status.txt"
+          else
+            echo "all_newspapers=false" >> $GITHUB_OUTPUT
+            echo "INCOMPLETE: Downloaded $NEWSPAPER_COUNT/$EXPECTED_COUNT newspapers" > "${{ steps.date.outputs.date }}/status.txt"
+          fi
+          echo "newspaper_count=$NEWSPAPER_COUNT" >> $GITHUB_OUTPUT
+          echo "expected_count=$EXPECTED_COUNT" >> $GITHUB_OUTPUT
+        else
+          echo "::error::No download status file was created"
+          echo "all_newspapers=false" >> $GITHUB_OUTPUT
+          echo "newspaper_count=0" >> $GITHUB_OUTPUT
+          echo "expected_count=3" >> $GITHUB_OUTPUT
+          echo "ERROR: No status file created" > "${{ steps.date.outputs.date }}/status.txt"
+        fi
+
+    # Send Email (Production)
+    - name: Send Email
+      if: success()
+      env:
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        ADDITIONAL_EMAIL_RECEIVERS: ${{ secrets.ADDITIONAL_EMAIL_RECEIVERS }}
+      run: |
+        source .venv/bin/activate
+        echo "::notice::Starting email delivery process with Dublin timestamp..."
+        pip install pytz
+        python send_email.py
+        
+        if [ $? -eq 0 ]; then
+          echo "::notice::Email delivery process completed successfully"
+        else
+          echo "::error::Email delivery failed"
+        fi
+
+  download-newspapers-retry:
+    needs: determine-environment
+    if: needs.determine-environment.outputs.environment == 'retry'
+    runs-on: ubuntu-latest
+    environment: retry
+    permissions:
+      contents: read
+      actions: write  # Needed for scheduling next attempt
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install Dependencies
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r requirements.txt
+
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%d-%m-%Y')" >> $GITHUB_OUTPUT
+
+    - name: Set up Folder Structure
+      run: |
+        mkdir -p ${{ steps.date.outputs.date }}_retry
+
+    # Get the retry attempt number
+    - name: Set attempt number
+      id: attempt
+      run: |
+        ATTEMPT="${{ github.event.inputs.retry_attempt }}"
+        if [ -z "$ATTEMPT" ]; then
+          ATTEMPT=1
+        fi
+        echo "number=$ATTEMPT" >> $GITHUB_OUTPUT
+        echo "RETRY_COUNT=$((ATTEMPT - 1))" >> $GITHUB_ENV
+        echo "::notice::Running attempt $ATTEMPT for ${{ steps.date.outputs.date }}_retry"
+
+    # Restore cache from previous attempts
+    - name: Restore Previous Downloads
+      uses: actions/cache/restore@v4
+      id: cache-restore
+      with:
+        path: ${{ steps.date.outputs.date }}_retry
+        key: newspapers-retry-${{ steps.date.outputs.date }}-v1
+        restore-keys: |
+          newspapers-retry-${{ steps.date.outputs.date }}-
+
+    # Check if we've already sent an email today
+    - name: Check if email already sent
+      id: email_check
+      run: |
+        if [ -f "${{ steps.date.outputs.date }}_retry/email_sent.txt" ]; then
+          echo "::notice::Email was already sent today. Skipping this run."
+          echo "already_sent=true" >> $GITHUB_OUTPUT
+        else
+          echo "already_sent=false" >> $GITHUB_OUTPUT
+        fi
+
+    # Skip the rest if we've already sent an email
+    - name: Exit if email already sent
+      if: steps.email_check.outputs.already_sent == 'true'
+      run: |
+        echo "Email was already sent for ${{ steps.date.outputs.date }}_retry. Exiting workflow."
+        exit 0
+
+    # Download Newspapers (Retry)
+    - name: Download Newspapers
+      id: download
+      env:
+        TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
+        RETRY_COUNT: ${{ env.RETRY_COUNT }}
+      run: |
+        source .venv/bin/activate
+        
+        # Temporarily modify the output directory in the script by setting an environment variable
+        export OUTPUT_DIR="${{ steps.date.outputs.date }}_retry"
+        python telegram_downloader.py
+        EXIT_CODE=$?
+        
+        # Check if all newspapers were downloaded
+        if [ -f "${{ steps.date.outputs.date }}_retry/download_status.json" ]; then
+          NEWSPAPER_COUNT=$(grep -o '"newspaper_count": [0-9]*' "${{ steps.date.outputs.date }}_retry/download_status.json" | awk '{print $2}')
+          EXPECTED_COUNT=$(grep -o '"expected_count": [0-9]*' "${{ steps.date.outputs.date }}_retry/download_status.json" | awk '{print $2}')
+          
+          echo "::notice::Downloaded $NEWSPAPER_COUNT out of $EXPECTED_COUNT newspapers in attempt ${{ steps.attempt.outputs.number }}"
+          
+          if [ "$NEWSPAPER_COUNT" -ge "$EXPECTED_COUNT" ]; then
+            echo "all_newspapers=true" >> $GITHUB_OUTPUT
+            echo "SUCCESS: All $EXPECTED_COUNT newspapers downloaded" > "${{ steps.date.outputs.date }}_retry/status.txt"
+          else
+            echo "all_newspapers=false" >> $GITHUB_OUTPUT
+            echo "INCOMPLETE: Downloaded $NEWSPAPER_COUNT/$EXPECTED_COUNT newspapers" > "${{ steps.date.outputs.date }}_retry/status.txt"
+          fi
+          echo "newspaper_count=$NEWSPAPER_COUNT" >> $GITHUB_OUTPUT
+          echo "expected_count=$EXPECTED_COUNT" >> $GITHUB_OUTPUT
+        else
+          echo "::error::No download status file was created"
+          echo "all_newspapers=false" >> $GITHUB_OUTPUT
+          echo "newspaper_count=0" >> $GITHUB_OUTPUT
+          echo "expected_count=3" >> $GITHUB_OUTPUT
+          echo "ERROR: No status file created" > "${{ steps.date.outputs.date }}_retry/status.txt"
+        fi
+
+    # Save cache for next attempts
+    - name: Cache Downloads
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ steps.date.outputs.date }}_retry
+        key: newspapers-retry-${{ steps.date.outputs.date }}-v1
+
+    # Only send email if this is the 3rd attempt or if all newspapers downloaded
+    - name: Send Email
+      if: (steps.attempt.outputs.number == '3' || steps.download.outputs.all_newspapers == 'true') && steps.email_check.outputs.already_sent == 'false'
+      env:
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+        ADDITIONAL_EMAIL_RECEIVERS: ${{ secrets.ADDITIONAL_EMAIL_RECEIVERS }}
+        RETRY_COUNT: ${{ env.RETRY_COUNT }}
+      run: |
+        source .venv/bin/activate
+        echo "::notice::Starting email delivery process with Dublin timestamp..."
+        pip install pytz
+        
+        # Temporarily modify the folder in the script by setting an environment variable
+        export EMAIL_FOLDER="${{ steps.date.outputs.date }}_retry"
+        export EMAIL_SUBJECT_PREFIX="[WITH RETRIES] "
+        python send_email.py
+        
+        if [ $? -eq 0 ]; then
+          echo "::notice::Email delivery process completed successfully"
+          # Mark that we've sent the email to avoid duplicates
+          echo "Sent on $(date)" > "${{ steps.date.outputs.date }}_retry/email_sent.txt"
+        else
+          echo "::error::Email delivery failed"
+        fi
+
+    # Schedule next attempt if needed
+    - name: Schedule Next Attempt
+      if: steps.download.outputs.all_newspapers != 'true' && steps.attempt.outputs.number != '3' && steps.email_check.outputs.already_sent == 'false'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const nextAttempt = parseInt('${{ steps.attempt.outputs.number }}') + 1;
+          
+          console.log(`Scheduling next attempt (${nextAttempt}) in 1 hour`);
+          
+          // We'll use the schedule_delay.yml workflow to handle the 1-hour delay
+          await github.rest.actions.createWorkflowDispatch({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            workflow_id: 'schedule_delay.yml',
+            ref: 'main',
+            inputs: {
+              retry_attempt: nextAttempt.toString(),
+              date: '${{ steps.date.outputs.date }}'
+            }
+          });
+          
+          console.log(`Next attempt (${nextAttempt}) scheduled via schedule_delay.yml workflow`);
