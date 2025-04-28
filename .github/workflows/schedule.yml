@@ -22,7 +22,7 @@ jobs:
       run: |
         python -m venv .venv
         source .venv/bin/activate
-        pip install telethon Pillow PyMuPDF python-docx PyPDF2
+        pip install telethon Pillow PyMuPDF python-docx PyPDF2 pytz
 
     - name: Set up Folder Structure
       run: |
@@ -53,4 +53,7 @@ jobs:
         ADDITIONAL_EMAIL_RECEIVERS: ${{ secrets.ADDITIONAL_EMAIL_RECEIVERS }}
       run: |
         source .venv/bin/activate
+        echo "::notice::Starting email delivery process with Dublin timestamp..."
+        pip install pytz
         python send_email.py
+        echo "::notice::Email delivery process completed"
