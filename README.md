@@ -42,7 +42,7 @@ on:
     ```sh
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install telethon Pillow PyMuPDF python-docx poppler-utils pytesseract PyPDF2 pytz
+    pip install -r requirements.txt
     ```
 
 2. **Generate a Telegram session string:**
@@ -74,6 +74,14 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
     - Copy the 16-character password provided.
 2. **Update your GitHub secret**
     - In your repo's **Settings → Secrets → Actions**, set `EMAIL_PASSWORD` to the new 16-character App Password.
+
+## Dependencies
+
+This project requires the following Python libraries:
+- **telethon**: For downloading articles from Telegram channels
+- **pytz**: For handling timezone information in email notifications
+
+All dependencies are listed in the `requirements.txt` file.
 
 ## Running the Workflow
 
