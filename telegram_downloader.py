@@ -53,7 +53,7 @@ channels = [
     # },
     {
         'username': '@the_hindu_newspaper_free_pdf',
-        'source_format': 'THE HINDU UPSC IAS EDITION HD{date}.pdf',
+        'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
         'target_format': 'The_Hindu_{date}.pdf',
         'date_format': '%d~%m~%Y',
         'target_date_format': '%d-%m-%Y',
@@ -142,18 +142,52 @@ async def check_newspaper_channel(client, channel):
             target_date = today.strftime(file_conf['target_date_format'])
             source_filename = file_conf['source_format'].format(date=source_date)
             target_filename = file_conf['target_format'].format(date=target_date)
+            
+            # Special handling for The Hindu to try both with and without space
+            alternate_source_filename = None
+            if '@the_hindu_newspaper_free_pdf' in channel['username']:
+                if ' {date}' in file_conf['source_format']:
+                    # Create alternate filename without space
+                    alternate_format = file_conf['source_format'].replace(' {date}', '{date}')
+                    alternate_source_filename = alternate_format.format(date=source_date)
+                elif '{date}' in file_conf['source_format']:
+                    # Create alternate filename with space
+                    alternate_format = file_conf['source_format'].replace('{date}', ' {date}')
+                    alternate_source_filename = alternate_format.format(date=source_date)
+            
             logger.info(f"Checking {channel['username']} for: {source_filename}")
+            if alternate_source_filename:
+                logger.info(f"Will also check alternative format: {alternate_source_filename}")
+                
+            found_file = False
             async for message in client.iter_messages(channel['username'], limit=50):
                 if (message.file and 
                     hasattr(message.file, 'name') and 
-                    message.file.name and 
-                    message.file.name.lower() == source_filename.lower()):
-                    await download_file(client, message, target_filename, 'newspaper')
-                    found_any = True
-                    break
+                    message.file.name):
+                    
+                    # Check for primary format match
+                    if message.file.name.lower() == source_filename.lower():
+                        logger.info(f"Found file with primary format: {message.file.name}")
+                        await download_file(client, message, target_filename, 'newspaper')
+                        found_any = True
+                        found_file = True
+                        break
+                    
+                    # Check for alternate format match if available
+                    if alternate_source_filename and message.file.name.lower() == alternate_source_filename.lower():
+                        logger.info(f"Found file with alternate format: {message.file.name}")
+                        await download_file(client, message, target_filename, 'newspaper')
+                        found_any = True
+                        found_file = True
+                        break
+                        
                 await asyncio.sleep(0.5)
-            else:
+            
+            if not found_file:
                 logger.info(f"File not found in {channel['username']}: {source_filename}")
+                if alternate_source_filename:
+                    logger.info(f"Also tried alternate format: {alternate_source_filename}")
+                    
         return found_any
     except Exception as e:
         logger.error(f"Error checking {channel['username']}: {e}")
