@@ -109,6 +109,7 @@ async def check_highlights_channel(client, channel):
     try:
         today = datetime.now()
         for pattern in channel['patterns']:
+            # Try with the original date format first
             date_str = today.strftime(pattern['date_format'])
             expected_text = pattern['text_pattern'].format(date=date_str)
             target_filename = pattern['target_format'].format(
@@ -116,11 +117,37 @@ async def check_highlights_channel(client, channel):
             )
             
             logger.info(f"Checking {channel['username']} for: {expected_text}")
+            found = False
             
             async for message in client.iter_messages(channel['username'], limit=50):
                 if message.text and expected_text in message.text and message.media:
-                    await download_file(client, message, target_filename, 'highlights')
+                    success = await download_file(client, message, target_filename, 'highlights')
+                    if success:
+                        found = True
+                        break
                 await asyncio.sleep(0.5)
+            
+            # If not found, try alternative date format (removing leading zeros)
+            if not found and '/' in pattern['date_format']:
+                # Create alternative date format with single digits for day/month
+                alt_date = today.strftime(pattern['date_format'])
+                if alt_date.startswith('0'):
+                    alt_date = alt_date[1:]  # Remove leading zero from day
+                
+                # Also handle month with leading zero
+                parts = alt_date.split('/')
+                if len(parts) > 1 and parts[1].startswith('0'):
+                    parts[1] = parts[1][1:]  # Remove leading zero from month
+                    alt_date = '/'.join(parts)
+                
+                alt_expected_text = pattern['text_pattern'].format(date=alt_date)
+                logger.info(f"Retrying with alternative date format: {alt_expected_text}")
+                
+                async for message in client.iter_messages(channel['username'], limit=50):
+                    if message.text and alt_expected_text in message.text and message.media:
+                        await download_file(client, message, target_filename, 'highlights')
+                        break
+                    await asyncio.sleep(0.5)
     except Exception as e:
         logger.error(f"Error checking highlights in {channel['username']}: {e}")
 
@@ -168,23 +195,72 @@ async def check_newspaper_channel(client, channel):
                     # Check for primary format match
                     if message.file.name.lower() == source_filename.lower():
                         logger.info(f"Found file with primary format: {message.file.name}")
-                        await download_file(client, message, target_filename, 'newspaper')
-                        found_any = True
-                        found_file = True
-                        break
+                        success = await download_file(client, message, target_filename, 'newspaper')
+                        if success:
+                            found_any = True
+                            found_file = True
+                            break
                     
                     # Check for alternate format match if available
                     if alternate_source_filename and message.file.name.lower() == alternate_source_filename.lower():
                         logger.info(f"Found file with alternate format: {message.file.name}")
-                        await download_file(client, message, target_filename, 'newspaper')
-                        found_any = True
-                        found_file = True
-                        break
+                        success = await download_file(client, message, target_filename, 'newspaper')
+                        if success:
+                            found_any = True
+                            found_file = True
+                            break
                         
                 await asyncio.sleep(0.5)
             
+            # If the file was not found with the original date format, try alternative formats
+            if not found_file and '~' in file_conf['date_format']:
+                # Try with alternative date formats (removing leading zeros)
+                alt_date_formats = []
+                
+                # Create date with day without leading zero
+                parts = source_date.split('~')
+                if len(parts) >= 3 and parts[0].startswith('0'):
+                    new_parts = parts.copy()
+                    new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                    alt_date_formats.append('~'.join(new_parts))
+                
+                # Create date with month without leading zero
+                if len(parts) >= 3 and parts[1].startswith('0'):
+                    new_parts = parts.copy()
+                    new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                    alt_date_formats.append('~'.join(new_parts))
+                
+                # Create date with both day and month without leading zeros
+                if len(parts) >= 3 and parts[0].startswith('0') and parts[1].startswith('0'):
+                    new_parts = parts.copy()
+                    new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                    new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                    alt_date_formats.append('~'.join(new_parts))
+                
+                # Try each alternative date format
+                for alt_date in alt_date_formats:
+                    alt_source_filename = file_conf['source_format'].format(date=alt_date)
+                    logger.info(f"Trying alternative date format: {alt_source_filename}")
+                    
+                    async for message in client.iter_messages(channel['username'], limit=50):
+                        if (message.file and 
+                            hasattr(message.file, 'name') and 
+                            message.file.name and
+                            message.file.name.lower() == alt_source_filename.lower()):
+                            
+                            logger.info(f"Found file with alternative date format: {message.file.name}")
+                            success = await download_file(client, message, target_filename, 'newspaper')
+                            if success:
+                                found_any = True
+                                found_file = True
+                                break
+                        await asyncio.sleep(0.5)
+                    
+                    if found_file:
+                        break
+            
             if not found_file:
-                logger.info(f"File not found in {channel['username']}: {source_filename}")
+                logger.info(f"File not found in {channel['username']} with any date format: {source_filename}")
                 if alternate_source_filename:
                     logger.info(f"Also tried alternate format: {alternate_source_filename}")
                     

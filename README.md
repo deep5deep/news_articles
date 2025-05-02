@@ -8,6 +8,7 @@ Automated extraction and delivery of daily newspaper files from Telegram channel
 - Organized file storage by date
 - Email delivery with Dublin timezone timestamp
 - Support for multiple email recipients
+- **Smart date format handling** - Tries different date formats (with/without leading zeros) if the initial download fails
 
 ## Folder Structure
 

@@ -32,12 +32,13 @@ jobs:
       id: vars
       run: echo "date_dir=$(date +'%d-%m-%Y')" >> $GITHUB_OUTPUT
 
-    - name: Run Scripts
+    - name: Download Telegram Media
       env:
         TELEGRAM_SESSION_STRING: ${{ secrets.TELEGRAM_SESSION_STRING }}
       run: |
         source .venv/bin/activate
         python telegram_downloader.py
+        echo "::notice::Telegram media download completed."
 
     # - name: Save Artifacts
     #   uses: actions/upload-artifact@v4
