@@ -127,27 +127,52 @@ async def check_highlights_channel(client, channel):
                         break
                 await asyncio.sleep(0.5)
             
-            # If not found, try alternative date format (removing leading zeros)
+            # If not found, try alternative date formats (removing leading zeros)
             if not found and '/' in pattern['date_format']:
-                # Create alternative date format with single digits for day/month
-                alt_date = today.strftime(pattern['date_format'])
-                if alt_date.startswith('0'):
-                    alt_date = alt_date[1:]  # Remove leading zero from day
+                # Generate all possible date format variations
+                alt_date_formats = []
                 
-                # Also handle month with leading zero
-                parts = alt_date.split('/')
-                if len(parts) > 1 and parts[1].startswith('0'):
-                    parts[1] = parts[1][1:]  # Remove leading zero from month
-                    alt_date = '/'.join(parts)
+                # Original format (e.g., "02/05/2025")
+                orig_date = today.strftime(pattern['date_format'])
+                parts = orig_date.split('/')
                 
-                alt_expected_text = pattern['text_pattern'].format(date=alt_date)
-                logger.info(f"Retrying with alternative date format: {alt_expected_text}")
+                if len(parts) > 1:
+                    # Format 1: Day without leading zero (e.g., "2/05/2025")
+                    if parts[0].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[0] = parts[0][1:]
+                        alt_date_formats.append('/'.join(new_parts))
+                    
+                    # Format 2: Month without leading zero (e.g., "02/5/2025")
+                    if len(parts) > 1 and parts[1].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[1] = parts[1][1:]
+                        alt_date_formats.append('/'.join(new_parts))
+                    
+                    # Format 3: Both day and month without leading zeros (e.g., "2/5/2025")
+                    if parts[0].startswith('0') and parts[1].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[0] = parts[0][1:]
+                        new_parts[1] = parts[1][1:]
+                        alt_date_formats.append('/'.join(new_parts))
                 
-                async for message in client.iter_messages(channel['username'], limit=50):
-                    if message.text and alt_expected_text in message.text and message.media:
-                        await download_file(client, message, target_filename, 'highlights')
+                # Try each alternative date format
+                for alt_date in alt_date_formats:
+                    alt_expected_text = pattern['text_pattern'].format(date=alt_date)
+                    logger.info(f"Retrying with alternative date format: {alt_expected_text}")
+                    
+                    found_with_alt = False
+                    async for message in client.iter_messages(channel['username'], limit=50):
+                        if message.text and alt_expected_text in message.text and message.media:
+                            success = await download_file(client, message, target_filename, 'highlights')
+                            if success:
+                                found_with_alt = True
+                                found = True
+                                break
+                        await asyncio.sleep(0.5)
+                    
+                    if found_with_alt:
                         break
-                    await asyncio.sleep(0.5)
     except Exception as e:
         logger.error(f"Error checking highlights in {channel['username']}: {e}")
 
@@ -217,25 +242,27 @@ async def check_newspaper_channel(client, channel):
                 # Try with alternative date formats (removing leading zeros)
                 alt_date_formats = []
                 
-                # Create date with day without leading zero
+                # Parse the original date
                 parts = source_date.split('~')
-                if len(parts) >= 3 and parts[0].startswith('0'):
-                    new_parts = parts.copy()
-                    new_parts[0] = parts[0][1:]  # Remove leading zero from day
-                    alt_date_formats.append('~'.join(new_parts))
-                
-                # Create date with month without leading zero
-                if len(parts) >= 3 and parts[1].startswith('0'):
-                    new_parts = parts.copy()
-                    new_parts[1] = parts[1][1:]  # Remove leading zero from month
-                    alt_date_formats.append('~'.join(new_parts))
-                
-                # Create date with both day and month without leading zeros
-                if len(parts) >= 3 and parts[0].startswith('0') and parts[1].startswith('0'):
-                    new_parts = parts.copy()
-                    new_parts[0] = parts[0][1:]  # Remove leading zero from day
-                    new_parts[1] = parts[1][1:]  # Remove leading zero from month
-                    alt_date_formats.append('~'.join(new_parts))
+                if len(parts) >= 3:
+                    # Format 1: Day without leading zero
+                    if parts[0].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                        alt_date_formats.append('~'.join(new_parts))
+                    
+                    # Format 2: Month without leading zero
+                    if parts[1].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                        alt_date_formats.append('~'.join(new_parts))
+                    
+                    # Format 3: Both day and month without leading zeros
+                    if parts[0].startswith('0') and parts[1].startswith('0'):
+                        new_parts = parts.copy()
+                        new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                        new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                        alt_date_formats.append('~'.join(new_parts))
                 
                 # Try each alternative date format
                 for alt_date in alt_date_formats:

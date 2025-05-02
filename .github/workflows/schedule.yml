@@ -1,4 +1,4 @@
-name: Run Daily Scripts
+name: Telegram Media Downloader
 
 on:
   schedule:
