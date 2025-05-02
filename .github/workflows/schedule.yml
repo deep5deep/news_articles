@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-scripts:
+  telegram_downloader:
     runs-on: ubuntu-latest
 
     steps:
