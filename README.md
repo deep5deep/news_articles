@@ -92,6 +92,7 @@ All dependencies are listed in the `requirements.txt` file.
 
 ## To Do
 
+- Add The Hindu Delhi edition - @the_hindu_newspaper_free_pdf
 - Change email sender and email password in GitHub secrets
 - Upload it to Google Drive
 
