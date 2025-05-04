@@ -35,10 +35,10 @@ def send_email(folder, newspaper_filter=None):
     msg = EmailMessage()
     if newspaper_filter == 'indian_express':
         msg['Subject'] = f'Indian Express Articles - {dublin_time_str}'
-        msg.set_content(f"Attached are today's articles from The Indian Express, including Delhi edition, UPSC edition, and image file.\n\nSent at: {dublin_time_str} (Dublin Time)")
+        msg.set_content(f"Attached are today's articles from The Indian Express.\n\nSent at: {dublin_time_str} (Dublin Time)")
     elif newspaper_filter == 'the_hindu':
         msg['Subject'] = f'The Hindu Articles - {dublin_time_str}'
-        msg.set_content(f"Attached are today's articles from The Hindu, including Delhi edition, UPSC edition, and image file.\n\nSent at: {dublin_time_str} (Dublin Time)")
+        msg.set_content(f"Attached are today's articles from The Hindu.\n\nSent at: {dublin_time_str} (Dublin Time)")
     else:
         msg['Subject'] = f'Daily News Articles - {dublin_time_str}'
         msg.set_content(f"Attached are today's news articles.\n\nSent at: {dublin_time_str} (Dublin Time)")
