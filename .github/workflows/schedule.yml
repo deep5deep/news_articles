@@ -46,7 +46,7 @@ jobs:
     #     name: ${{ steps.vars.outputs.date_dir }}
     #     path: ${{ github.workspace }}/${{ steps.vars.outputs.date_dir }}/
 
-    - name: Send Email
+    - name: Send Emails (Separate for Each Newspaper)
       env:
         EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
@@ -54,7 +54,7 @@ jobs:
         ADDITIONAL_EMAIL_RECEIVERS: ${{ secrets.ADDITIONAL_EMAIL_RECEIVERS }}
       run: |
         source .venv/bin/activate
-        echo "::notice::Starting email delivery process with Dublin timestamp..."
+        echo "::notice::Starting email delivery process with separate emails for each newspaper..."
         pip install pytz
         python send_email.py
-        echo "::notice::Email delivery process completed"
+        echo "::notice::Email delivery process completed - Indian Express and The Hindu sent separately"

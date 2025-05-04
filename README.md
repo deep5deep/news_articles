@@ -6,6 +6,7 @@ Automated extraction and delivery of daily newspaper files from Telegram channel
 
 - Automated download of news articles from Telegram channels
 - Organized file storage by date
+- **Separate emails for each newspaper** - Indian Express and The Hindu sent as separate emails
 - Email delivery with Dublin timezone timestamp
 - Support for multiple email recipients
 - **Smart date format handling** - Tries different date formats (with/without leading zeros) if the initial download fails
@@ -26,6 +27,15 @@ Each run creates a folder named after today's date (e.g., `25-04-2025`) containi
 ```
 
 The downloadable/uploaded artifact is named after the date (e.g., `25-04-2025`).
+
+## Email Structure
+
+The system sends two separate emails:
+
+1. **Indian Express Articles** - Contains all Indian Express files (both editions and image)
+2. **The Hindu Articles** - Contains all The Hindu files (both editions and image)
+
+This separation helps avoid email size limits and keeps content organized by publication.
 
 ## Supported File Formats
 
@@ -102,7 +112,7 @@ All dependencies are listed in the `requirements.txt` file.
 ## Running the Workflow
 
 - The workflow runs automatically on the schedule above or can be triggered manually via GitHub Actions.
-- Emails are sent with a Dublin timezone timestamp in both the subject line and email body for accurate time reference.
+- Separate emails are sent for Indian Express and The Hindu articles, each with Dublin timezone timestamps.
 - GitHub Actions logs will show notices when the email process starts and completes.
 
 ## To Do
