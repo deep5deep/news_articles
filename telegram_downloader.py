@@ -53,10 +53,20 @@ channels = [
     # },
     {
         'username': '@the_hindu_newspaper_free_pdf',
-        'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
-        'target_format': 'The_Hindu_{date}.pdf',
-        'date_format': '%d~%m~%Y',
-        'target_date_format': '%d-%m-%Y',
+        'files': [
+            {
+                'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
+                'target_format': 'The_Hindu_UPSC_{date}.pdf',
+                'date_format': '%d~%m~%Y',
+                'target_date_format': '%d-%m-%Y'
+            },
+            {
+                'source_format': 'TH Delhi {date}.pdf',
+                'target_format': 'The_Hindu_Delhi_{date}.pdf',
+                'date_format': '%d--%m',
+                'target_date_format': '%d-%m-%Y'
+            }
+        ],
         'type': 'newspaper'
     },
     {
@@ -238,31 +248,56 @@ async def check_newspaper_channel(client, channel):
                 await asyncio.sleep(0.5)
             
             # If the file was not found with the original date format, try alternative formats
-            if not found_file and '~' in file_conf['date_format']:
-                # Try with alternative date formats (removing leading zeros)
+            if not found_file:
                 alt_date_formats = []
                 
-                # Parse the original date
-                parts = source_date.split('~')
-                if len(parts) >= 3:
-                    # Format 1: Day without leading zero
-                    if parts[0].startswith('0'):
-                        new_parts = parts.copy()
-                        new_parts[0] = parts[0][1:]  # Remove leading zero from day
-                        alt_date_formats.append('~'.join(new_parts))
-                    
-                    # Format 2: Month without leading zero
-                    if parts[1].startswith('0'):
-                        new_parts = parts.copy()
-                        new_parts[1] = parts[1][1:]  # Remove leading zero from month
-                        alt_date_formats.append('~'.join(new_parts))
-                    
-                    # Format 3: Both day and month without leading zeros
-                    if parts[0].startswith('0') and parts[1].startswith('0'):
-                        new_parts = parts.copy()
-                        new_parts[0] = parts[0][1:]  # Remove leading zero from day
-                        new_parts[1] = parts[1][1:]  # Remove leading zero from month
-                        alt_date_formats.append('~'.join(new_parts))
+                # Handle tilde format (dd~mm~yyyy)
+                if '~' in file_conf['date_format']:
+                    # Parse the original date
+                    parts = source_date.split('~')
+                    if len(parts) >= 3:
+                        # Format 1: Day without leading zero
+                        if parts[0].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                            alt_date_formats.append('~'.join(new_parts))
+                        
+                        # Format 2: Month without leading zero
+                        if parts[1].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                            alt_date_formats.append('~'.join(new_parts))
+                        
+                        # Format 3: Both day and month without leading zeros
+                        if parts[0].startswith('0') and parts[1].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                            new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                            alt_date_formats.append('~'.join(new_parts))
+                
+                # Handle double-hyphen format (dd--mm)
+                elif '--' in file_conf['date_format']:
+                    # Parse the original date
+                    parts = source_date.split('--')
+                    if len(parts) >= 2:
+                        # Format 1: Day without leading zero
+                        if parts[0].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                            alt_date_formats.append('--'.join(new_parts))
+                        
+                        # Format 2: Month without leading zero
+                        if parts[1].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                            alt_date_formats.append('--'.join(new_parts))
+                        
+                        # Format 3: Both day and month without leading zeros
+                        if parts[0].startswith('0') and parts[1].startswith('0'):
+                            new_parts = parts.copy()
+                            new_parts[0] = parts[0][1:]  # Remove leading zero from day
+                            new_parts[1] = parts[1][1:]  # Remove leading zero from month
+                            alt_date_formats.append('--'.join(new_parts))
                 
                 # Try each alternative date format
                 for alt_date in alt_date_formats:

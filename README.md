@@ -9,6 +9,7 @@ Automated extraction and delivery of daily newspaper files from Telegram channel
 - Email delivery with Dublin timezone timestamp
 - Support for multiple email recipients
 - **Smart date format handling** - Tries different date formats (with/without leading zeros) if the initial download fails
+- Support for multiple newspaper editions (UPSC, Delhi) from the same channel
 
 ## Folder Structure
 
@@ -18,12 +19,26 @@ Each run creates a folder named after today's date (e.g., `25-04-2025`) containi
 <date>/
 ├── Indian_Express_<date>.pdf
 ├── Indian_Express_UPSC_<date>.pdf
-├── The_Hindu_<date>.pdf
+├── The_Hindu_UPSC_<date>.pdf
+├── The_Hindu_Delhi_<date>.pdf
 ├── Indian_Express_<date>.jpg
 ├── The_Hindu_<date>.jpg
 ```
 
 The downloadable/uploaded artifact is named after the date (e.g., `25-04-2025`).
+
+## Supported File Formats
+
+The downloader handles various file naming formats from different Telegram channels:
+
+| Publication | Edition | Format in Telegram | Example |
+|-------------|---------|-------------------|---------|
+| Indian Express | Delhi | `INDIAN EXPRESS HD Delhi dd~mm~yyyy.pdf` | `INDIAN EXPRESS HD Delhi 04~05~2025.pdf` |
+| Indian Express | UPSC | `INDIAN EXPRESS UPSC IAS EDITION HD dd~mm~yyyy.pdf` | `INDIAN EXPRESS UPSC IAS EDITION HD 04~05~2025.pdf` |
+| The Hindu | UPSC | `THE HINDU UPSC IAS EDITION HD dd~mm~yyyy.pdf` | `THE HINDU UPSC IAS EDITION HD 04~05~2025.pdf` |
+| The Hindu | Delhi | `TH Delhi dd--mm.pdf` | `TH Delhi 4--5.pdf` or `TH Delhi 04--05.pdf` |
+
+The system handles variations with and without leading zeros in date formats.
 
 ## GitHub Actions Schedule
 
@@ -92,7 +107,6 @@ All dependencies are listed in the `requirements.txt` file.
 
 ## To Do
 
-- Add The Hindu Delhi edition - @the_hindu_newspaper_free_pdf
 - Change email sender and email password in GitHub secrets
 - Upload it to Google Drive
 
