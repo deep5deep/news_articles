@@ -104,6 +104,7 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
 ## Dependencies
 
 This project requires the following Python libraries:
+
 - **telethon**: For downloading articles from Telegram channels
 - **pytz**: For handling timezone information in email notifications
 
