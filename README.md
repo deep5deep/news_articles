@@ -118,7 +118,6 @@ All dependencies are listed in the `requirements.txt` file.
 
 ## To Do
 
-- THE HINDU UPSC IAS EDITION HD 09~05~2025 - Join This Private Channel By Link https://t.me/+Bu7senHpQdhlODg1
 - Change email sender and email password in GitHub secrets
 - Upload it to Google Drive
 

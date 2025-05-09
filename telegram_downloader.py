@@ -54,16 +54,29 @@ channels = [
     {
         'username': '@the_hindu_newspaper_free_pdf',
         'files': [
-            {
-                'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
-                'target_format': 'The_Hindu_UPSC_{date}.pdf',
-                'date_format': '%d~%m~%Y',
-                'target_date_format': '%d-%m-%Y'
-            },
+            # Commented out the old Hindu UPSC channel
+            # {
+            #     'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
+            #     'target_format': 'The_Hindu_UPSC_{date}.pdf',
+            #     'date_format': '%d~%m~%Y',
+            #     'target_date_format': '%d-%m-%Y'
+            # },
             {
                 'source_format': 'TH Delhi {date}.pdf',
                 'target_format': 'The_Hindu_Delhi_{date}.pdf',
                 'date_format': '%d--%m',
+                'target_date_format': '%d-%m-%Y'
+            }
+        ],
+        'type': 'newspaper'
+    },
+    {
+        'username': 'https://t.me/+Bu7senHpQdhlODg1',
+        'files': [
+            {
+                'source_format': 'THE HINDU UPSC IAS EDITION HD {date}.pdf',
+                'target_format': 'The_Hindu_UPSC_{date}.pdf',
+                'date_format': '%d~%m~%Y',
                 'target_date_format': '%d-%m-%Y'
             }
         ],
