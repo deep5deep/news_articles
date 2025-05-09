@@ -72,6 +72,7 @@ channels = [
         ],
         'type': 'newspaper'
     },
+    # Using the full invite link for the private channel as mentioned in the prompt
     {
         'username': 'https://t.me/+Bu7senHpQdhlODg1',
         'files': [
@@ -214,6 +215,25 @@ async def check_newspaper_channel(client, channel):
                 'date_format': channel['date_format'],
                 'target_date_format': channel['target_date_format']
             }]
+        
+        # For private channels with invite links, let's verify we can access it
+        if channel['username'].startswith('https://t.me/+'):
+            try:
+                # Try to get recent messages to verify access
+                logger.info(f"Verifying access to private channel {channel['username']} before searching for files")
+                messages = []
+                async for msg in client.iter_messages(channel['username'], limit=1):
+                    messages.append(msg)
+                
+                if not messages:
+                    logger.warning(f"Could access the channel {channel['username']} but no messages found. This might be an access issue.")
+                else:
+                    logger.info(f"Successfully accessed private channel {channel['username']} and found messages")
+            except Exception as channel_access_err:
+                logger.error(f"Failed to access private channel {channel['username']}: {channel_access_err}")
+                logger.error("This might be due to not being a member of the channel or an invalid invite link")
+                return False
+                
         for file_conf in file_confs:
             source_date = today.strftime(file_conf['date_format'])
             target_date = today.strftime(file_conf['target_date_format'])
@@ -355,7 +375,23 @@ async def join_private_channels(client):
                 logger.info(f"Attempting to join private channel: {channel['username']}")
                 # Extract the hash from the invite link
                 channel_hash = channel['username'].split('+', 1)[1]
-                await client(ImportChatInviteRequest(channel_hash))
+                
+                # Try to join using ImportChatInviteRequest
+                try:
+                    await client(ImportChatInviteRequest(channel_hash))
+                    logger.info(f"Successfully joined private channel using invite hash: {channel['username']}")
+                except Exception as invite_err:
+                    logger.warning(f"Couldn't join using invite hash, trying direct URL: {invite_err}")
+                    # Try to join using the full URL as a fallback
+                    try:
+                        await client(JoinChannelRequest(channel['username']))
+                        logger.info(f"Successfully joined private channel using full URL: {channel['username']}")
+                    except Exception as url_err:
+                        logger.error(f"Failed to join using full URL: {url_err}")
+                        raise
+                
+                # Add a delay after joining to ensure it takes effect
+                await asyncio.sleep(2)
                 logger.info(f"Successfully joined private channel: {channel['username']}")
             except Exception as e:
                 logger.error(f"Failed to join private channel {channel['username']}: {e}")
@@ -380,8 +416,17 @@ async def main():
             # Join any private channels first
             await join_private_channels(client)
             
+            # Verify channel access
             for channel in channels:
                 try:
+                    channel_entity = None
+                    try:
+                        # Try to get the channel entity to verify access
+                        channel_entity = await client.get_entity(channel['username'])
+                        logger.info(f"Successfully verified access to channel: {channel['username']}")
+                    except Exception as access_err:
+                        logger.error(f"Failed to verify access to channel {channel['username']}: {access_err}")
+                    
                     if channel['type'] == 'highlights':
                         await asyncio.wait_for(check_highlights_channel(client, channel), timeout=300)
                     else:
