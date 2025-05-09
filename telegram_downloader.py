@@ -216,36 +216,27 @@ async def check_newspaper_channel(client, channel):
                 'target_date_format': channel['target_date_format']
             }]
         
-        # Initialize an empty file_list for all channels (will be populated for private channels)
+        # Initialize an empty file_list for all channels
         file_list = []
         
-        # For private channels with invite links, let's verify we can access it
+        # For private channels with invite links, verify access
         if channel['username'].startswith('https://t.me/+'):
             try:
-                # Try to get recent messages to verify access
-                logger.info(f"Verifying access to private channel {channel['username']} before searching for files")
+                logger.info(f"Verifying access to private channel {channel['username']}")
                 messages = []
                 
-                # List up to 200 available files in the channel for debugging
-                logger.info(f"Listing available files in channel {channel['username']}...")
                 async for msg in client.iter_messages(channel['username'], limit=200):
                     messages.append(msg)
                     if msg.file and hasattr(msg.file, 'name') and msg.file.name:
                         file_list.append(msg.file.name)
-                        logger.info(f"Found file in channel: {msg.file.name}")
                 
                 if not messages:
-                    logger.warning(f"Could access the channel {channel['username']} but no messages found. This might be an access issue.")
+                    logger.warning(f"Could access the channel {channel['username']} but no messages found")
                     return False
                 else:
-                    logger.info(f"Successfully accessed private channel {channel['username']} and found {len(messages)} messages")
-                    if file_list:
-                        logger.info(f"Available files in channel: {file_list}")
-                    else:
-                        logger.warning(f"No files found in the messages we checked in {channel['username']}")
+                    logger.info(f"Successfully accessed private channel {channel['username']}")
             except Exception as channel_access_err:
                 logger.error(f"Failed to access private channel {channel['username']}: {channel_access_err}")
-                logger.error("This might be due to not being a member of the channel or an invalid invite link")
                 return False
                 
         for file_conf in file_confs:
@@ -315,9 +306,6 @@ async def check_newspaper_channel(client, channel):
                     if not hasattr(message.file, 'name') or not message.file.name:
                         continue
                         
-                    # Log every filename to help with debugging
-                    logger.info(f"File found during search: {message.file.name}")
-                    
                     # Check for primary format match
                     if message.file.name.lower() == source_filename.lower():
                         logger.info(f"Found file with primary format: {message.file.name}")
@@ -489,29 +477,18 @@ async def check_newspaper_channel(client, channel):
                                 
                             file_name_lower = message.file.name.lower()
                             
-                            # Log all PDF files for debugging
-                            if file_name_lower.endswith('.pdf'):
-                                logger.info(f"Last resort checking: {message.file.name}")
+                            # Must match all key parts (publication name, edition)
+                            if all(part in file_name_lower for part in key_parts):
+                                # Must match at least one date part
+                                date_match = any(digit in file_name_lower for digit in date_digits if len(digit) > 0)
                                 
-                                # Check which keywords match
-                                matching_keys = [part for part in key_parts if part in file_name_lower]
-                                matching_dates = [digit for digit in date_digits if digit in file_name_lower]
-                                
-                                if matching_keys and matching_dates:
-                                    logger.info(f"Potential match - Keys: {matching_keys}, Dates: {matching_dates}")
-                                
-                                # Must match all key parts (publication name, edition)
-                                if all(part in file_name_lower for part in key_parts):
-                                    # Must match at least one date part
-                                    date_match = any(digit in file_name_lower for digit in date_digits if len(digit) > 0)
-                                    
-                                    if date_match and file_name_lower.endswith('.pdf'):
-                                        logger.info(f"Found file with very loose matching: {message.file.name}")
-                                        success = await download_file(client, message, target_filename, 'newspaper')
-                                        if success:
-                                            found_any = True
-                                            found_file = True
-                                            break
+                                if date_match and file_name_lower.endswith('.pdf'):
+                                    logger.info(f"Found file with very loose matching: {message.file.name}")
+                                    success = await download_file(client, message, target_filename, 'newspaper')
+                                    if success:
+                                        found_any = True
+                                        found_file = True
+                                        break
                         
                         if found_file:
                             break
@@ -540,20 +517,19 @@ async def join_private_channels(client):
                 # Try to join using ImportChatInviteRequest
                 try:
                     await client(ImportChatInviteRequest(channel_hash))
-                    logger.info(f"Successfully joined private channel using invite hash: {channel['username']}")
+                    logger.info(f"Successfully joined private channel: {channel['username']}")
                 except Exception as invite_err:
                     logger.warning(f"Couldn't join using invite hash, trying direct URL: {invite_err}")
                     # Try to join using the full URL as a fallback
                     try:
                         await client(JoinChannelRequest(channel['username']))
-                        logger.info(f"Successfully joined private channel using full URL: {channel['username']}")
+                        logger.info(f"Successfully joined private channel: {channel['username']}")
                     except Exception as url_err:
                         logger.error(f"Failed to join using full URL: {url_err}")
                         raise
                 
                 # Add a delay after joining to ensure it takes effect
                 await asyncio.sleep(2)
-                logger.info(f"Successfully joined private channel: {channel['username']}")
             except Exception as e:
                 logger.error(f"Failed to join private channel {channel['username']}: {e}")
 
