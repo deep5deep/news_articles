@@ -216,13 +216,15 @@ async def check_newspaper_channel(client, channel):
                 'target_date_format': channel['target_date_format']
             }]
         
+        # Initialize an empty file_list for all channels (will be populated for private channels)
+        file_list = []
+        
         # For private channels with invite links, let's verify we can access it
         if channel['username'].startswith('https://t.me/+'):
             try:
                 # Try to get recent messages to verify access
                 logger.info(f"Verifying access to private channel {channel['username']} before searching for files")
                 messages = []
-                file_list = []
                 
                 # List up to 200 available files in the channel for debugging
                 logger.info(f"Listing available files in channel {channel['username']}...")
@@ -269,6 +271,7 @@ async def check_newspaper_channel(client, channel):
                 logger.info(f"The file {source_filename} was found in the initial channel scan. Attempting direct download...")
                 # Try to find the message with this file and download it
                 try:
+                    found_file = False
                     async for msg in client.iter_messages(channel['username'], limit=100):
                         if msg.file and hasattr(msg.file, 'name') and msg.file.name and msg.file.name.lower() == source_filename.lower():
                             logger.info(f"Found the exact file in channel: {msg.file.name}")
