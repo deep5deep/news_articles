@@ -222,13 +222,24 @@ async def check_newspaper_channel(client, channel):
                 # Try to get recent messages to verify access
                 logger.info(f"Verifying access to private channel {channel['username']} before searching for files")
                 messages = []
-                async for msg in client.iter_messages(channel['username'], limit=1):
+                file_list = []
+                
+                # List up to 20 available files in the channel for debugging
+                logger.info(f"Listing available files in channel {channel['username']}...")
+                async for msg in client.iter_messages(channel['username'], limit=20):
                     messages.append(msg)
+                    if msg.file and hasattr(msg.file, 'name') and msg.file.name:
+                        file_list.append(msg.file.name)
                 
                 if not messages:
                     logger.warning(f"Could access the channel {channel['username']} but no messages found. This might be an access issue.")
+                    return False
                 else:
-                    logger.info(f"Successfully accessed private channel {channel['username']} and found messages")
+                    logger.info(f"Successfully accessed private channel {channel['username']} and found {len(messages)} messages")
+                    if file_list:
+                        logger.info(f"Available files in channel: {file_list}")
+                    else:
+                        logger.warning(f"No files found in the messages we checked in {channel['username']}")
             except Exception as channel_access_err:
                 logger.error(f"Failed to access private channel {channel['username']}: {channel_access_err}")
                 logger.error("This might be due to not being a member of the channel or an invalid invite link")
@@ -279,6 +290,28 @@ async def check_newspaper_channel(client, channel):
                             found_any = True
                             found_file = True
                             break
+                    
+                    # For private channels, try a more flexible matching approach
+                    if channel['username'].startswith('https://t.me/+'):
+                        # Check if filename contains the essential components (exact match failed)
+                        filename_parts = source_filename.lower().replace('.pdf', '').split()
+                        file_name_lower = message.file.name.lower()
+                        
+                        # Check if all important parts are in the filename (like "HINDU", "UPSC", "HD", etc.)
+                        all_parts_match = all(part in file_name_lower for part in filename_parts if len(part) > 1)
+                        
+                        # Check for date components in the filename
+                        date_parts = source_date.split('~')
+                        date_matches = all(date_part in file_name_lower for date_part in date_parts)
+                        
+                        if all_parts_match and date_matches:
+                            logger.info(f"Found file with flexible matching: {message.file.name}")
+                            logger.info(f"  - Looking for: {source_filename}")
+                            success = await download_file(client, message, target_filename, 'newspaper')
+                            if success:
+                                found_any = True
+                                found_file = True
+                                break
                         
                 await asyncio.sleep(0.5)
             
@@ -360,6 +393,44 @@ async def check_newspaper_channel(client, channel):
                 logger.info(f"File not found in {channel['username']} with any date format: {source_filename}")
                 if alternate_source_filename:
                     logger.info(f"Also tried alternate format: {alternate_source_filename}")
+                
+                # Last resort: try a very loose match for private channels (just look for Hindu + UPSC + date)
+                if not found_file and channel['username'].startswith('https://t.me/+'):
+                    logger.info(f"Trying last resort loose matching for {channel['username']}")
+                    
+                    # Extract key keywords from filename
+                    key_parts = []
+                    if "HINDU" in source_filename.upper():
+                        key_parts.append("hindu")
+                    if "UPSC" in source_filename.upper():
+                        key_parts.append("upsc")
+                    if "EXPRESS" in source_filename.upper():
+                        key_parts.append("express")
+                        
+                    # Get just the date digits
+                    date_digits = []
+                    for part in source_date.split('~'):
+                        if part.isdigit():
+                            date_digits.append(part.lstrip('0') if part.startswith('0') else part)
+                    
+                    logger.info(f"Looking for loose match with keywords: {key_parts} and date digits: {date_digits}")
+                    
+                    async for message in client.iter_messages(channel['username'], limit=50):
+                        if (message.file and hasattr(message.file, 'name') and message.file.name):
+                            file_name_lower = message.file.name.lower()
+                            
+                            # Must match all key parts (publication name, edition)
+                            if all(part in file_name_lower for part in key_parts):
+                                # Must match at least one date part
+                                date_match = any(digit in file_name_lower for digit in date_digits if len(digit) > 0)
+                                
+                                if date_match and file_name_lower.endswith('.pdf'):
+                                    logger.info(f"Found file with very loose matching: {message.file.name}")
+                                    success = await download_file(client, message, target_filename, 'newspaper')
+                                    if success:
+                                        found_any = True
+                                        found_file = True
+                                        break
                     
         return found_any
     except Exception as e:
