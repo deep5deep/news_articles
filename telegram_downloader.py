@@ -224,12 +224,13 @@ async def check_newspaper_channel(client, channel):
                 messages = []
                 file_list = []
                 
-                # List up to 20 available files in the channel for debugging
+                # List up to 200 available files in the channel for debugging
                 logger.info(f"Listing available files in channel {channel['username']}...")
-                async for msg in client.iter_messages(channel['username'], limit=20):
+                async for msg in client.iter_messages(channel['username'], limit=200):
                     messages.append(msg)
                     if msg.file and hasattr(msg.file, 'name') and msg.file.name:
                         file_list.append(msg.file.name)
+                        logger.info(f"Found file in channel: {msg.file.name}")
                 
                 if not messages:
                     logger.warning(f"Could access the channel {channel['username']} but no messages found. This might be an access issue.")
@@ -268,19 +269,36 @@ async def check_newspaper_channel(client, channel):
                 logger.info(f"Will also check alternative format: {alternate_source_filename}")
                 
             found_file = False
-            async for message in client.iter_messages(channel['username'], limit=50):
-                if (message.file and 
-                    hasattr(message.file, 'name') and 
-                    message.file.name):
+            
+            # Implement manual pagination to check more messages
+            offset_id = 0
+            message_count = 0
+            max_messages = 200  # Check up to 200 messages
+            
+            while message_count < max_messages:
+                messages = await client.get_messages(channel['username'], limit=50, offset_id=offset_id)
+                if not messages:
+                    logger.info(f"No more messages found after checking {message_count} messages")
+                    break
+                
+                for message in messages:
+                    message_count += 1
                     
-                    # Check for primary format match
-                    if message.file.name.lower() == source_filename.lower():
-                        logger.info(f"Found file with primary format: {message.file.name}")
-                        success = await download_file(client, message, target_filename, 'newspaper')
-                        if success:
-                            found_any = True
-                            found_file = True
-                            break
+                    if (message.file and 
+                        hasattr(message.file, 'name') and 
+                        message.file.name):
+                        
+                        # Log every filename to help with debugging
+                        logger.info(f"File found during search: {message.file.name}")
+                        
+                        # Check for primary format match
+                        if message.file.name.lower() == source_filename.lower():
+                            logger.info(f"Found file with primary format: {message.file.name}")
+                            success = await download_file(client, message, target_filename, 'newspaper')
+                            if success:
+                                found_any = True
+                                found_file = True
+                                break
                     
                     # Check for alternate format match if available
                     if alternate_source_filename and message.file.name.lower() == alternate_source_filename.lower():
@@ -312,7 +330,16 @@ async def check_newspaper_channel(client, channel):
                                 found_any = True
                                 found_file = True
                                 break
+                        elif all_parts_match:  # Log partial matches for debugging
+                            logger.info(f"Found partial match (keywords match but date doesn't): {message.file.name}")
                         
+                if found_file:
+                    break
+                        
+                # Update offset_id for pagination if messages exist
+                if messages:
+                    offset_id = messages[-1].id
+                
                 await asyncio.sleep(0.5)
             
             # If the file was not found with the original date format, try alternative formats
@@ -415,22 +442,55 @@ async def check_newspaper_channel(client, channel):
                     
                     logger.info(f"Looking for loose match with keywords: {key_parts} and date digits: {date_digits}")
                     
-                    async for message in client.iter_messages(channel['username'], limit=50):
-                        if (message.file and hasattr(message.file, 'name') and message.file.name):
-                            file_name_lower = message.file.name.lower()
+                    # Manual pagination for last resort search
+                    offset_id = 0
+                    message_count = 0
+                    max_messages = 100  # Check up to 100 messages
+                    
+                    while message_count < max_messages and not found_file:
+                        messages = await client.get_messages(channel['username'], limit=50, offset_id=offset_id)
+                        if not messages:
+                            logger.info(f"No more messages found during last resort search after checking {message_count} messages")
+                            break
+                        
+                        for message in messages:
+                            message_count += 1
                             
-                            # Must match all key parts (publication name, edition)
-                            if all(part in file_name_lower for part in key_parts):
-                                # Must match at least one date part
-                                date_match = any(digit in file_name_lower for digit in date_digits if len(digit) > 0)
+                            if (message.file and hasattr(message.file, 'name') and message.file.name):
+                                file_name_lower = message.file.name.lower()
                                 
-                                if date_match and file_name_lower.endswith('.pdf'):
-                                    logger.info(f"Found file with very loose matching: {message.file.name}")
-                                    success = await download_file(client, message, target_filename, 'newspaper')
-                                    if success:
-                                        found_any = True
-                                        found_file = True
-                                        break
+                                # Log all PDF files for debugging
+                                if file_name_lower.endswith('.pdf'):
+                                    logger.info(f"Last resort checking: {message.file.name}")
+                                    
+                                    # Check which keywords match
+                                    matching_keys = [part for part in key_parts if part in file_name_lower]
+                                    matching_dates = [digit for digit in date_digits if digit in file_name_lower]
+                                    
+                                    if matching_keys and matching_dates:
+                                        logger.info(f"Potential match - Keys: {matching_keys}, Dates: {matching_dates}")
+                                
+                                # Must match all key parts (publication name, edition)
+                                if all(part in file_name_lower for part in key_parts):
+                                    # Must match at least one date part
+                                    date_match = any(digit in file_name_lower for digit in date_digits if len(digit) > 0)
+                                    
+                                    if date_match and file_name_lower.endswith('.pdf'):
+                                        logger.info(f"Found file with very loose matching: {message.file.name}")
+                                        success = await download_file(client, message, target_filename, 'newspaper')
+                                        if success:
+                                            found_any = True
+                                            found_file = True
+                                            break
+                        
+                        if found_file:
+                            break
+                            
+                        # Update offset_id for pagination if messages exist
+                        if messages:
+                            offset_id = messages[-1].id
+                        
+                        await asyncio.sleep(0.5)
                     
         return found_any
     except Exception as e:
