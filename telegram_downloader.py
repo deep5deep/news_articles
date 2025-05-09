@@ -1,5 +1,7 @@
 from telethon.sessions import StringSession
 from telethon import TelegramClient, events
+from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.tl.functions.messages import ImportChatInviteRequest
 import asyncio
 import os
 from datetime import datetime
@@ -345,6 +347,19 @@ async def check_newspaper_channel(client, channel):
         return False
 
 
+async def join_private_channels(client):
+    """Joins private channels using their invite links before attempting to download"""
+    for channel in channels:
+        if channel['username'].startswith('https://t.me/+'):
+            try:
+                logger.info(f"Attempting to join private channel: {channel['username']}")
+                # Extract the hash from the invite link
+                channel_hash = channel['username'].split('+', 1)[1]
+                await client(ImportChatInviteRequest(channel_hash))
+                logger.info(f"Successfully joined private channel: {channel['username']}")
+            except Exception as e:
+                logger.error(f"Failed to join private channel {channel['username']}: {e}")
+
 async def main():
     try:
         # Try getting session string from environment variable (for remote execution)
@@ -361,6 +376,9 @@ async def main():
             logger.info("Starting Telegram client...")
             me = await client.get_me()
             logger.info(f"Successfully connected as {me.username}")
+            
+            # Join any private channels first
+            await join_private_channels(client)
             
             for channel in channels:
                 try:
