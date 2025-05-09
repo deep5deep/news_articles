@@ -264,6 +264,26 @@ async def check_newspaper_channel(client, channel):
                     alternate_format = file_conf['source_format'].replace('{date}', ' {date}')
                     alternate_source_filename = alternate_format.format(date=source_date)
             
+            # Check if the file we're looking for is in the file_list already found
+            if file_list and any(f.lower() == source_filename.lower() for f in file_list):
+                logger.info(f"The file {source_filename} was found in the initial channel scan. Attempting direct download...")
+                # Try to find the message with this file and download it
+                try:
+                    async for msg in client.iter_messages(channel['username'], limit=100):
+                        if msg.file and hasattr(msg.file, 'name') and msg.file.name and msg.file.name.lower() == source_filename.lower():
+                            logger.info(f"Found the exact file in channel: {msg.file.name}")
+                            success = await download_file(client, msg, target_filename, 'newspaper')
+                            if success:
+                                found_any = True
+                                found_file = True
+                                break
+                    
+                    if found_file:
+                        logger.info(f"Successfully downloaded {source_filename} directly")
+                        continue  # Skip to next file
+                except Exception as direct_err:
+                    logger.error(f"Error attempting direct download of {source_filename}: {direct_err}")
+            
             logger.info(f"Checking {channel['username']} for: {source_filename}")
             if alternate_source_filename:
                 logger.info(f"Will also check alternative format: {alternate_source_filename}")
@@ -284,21 +304,25 @@ async def check_newspaper_channel(client, channel):
                 for message in messages:
                     message_count += 1
                     
-                    if (message.file and 
-                        hasattr(message.file, 'name') and 
-                        message.file.name):
+                    # Skip messages without files
+                    if not message.file:
+                        continue
                         
-                        # Log every filename to help with debugging
-                        logger.info(f"File found during search: {message.file.name}")
+                    # Skip files without name attribute
+                    if not hasattr(message.file, 'name') or not message.file.name:
+                        continue
                         
-                        # Check for primary format match
-                        if message.file.name.lower() == source_filename.lower():
-                            logger.info(f"Found file with primary format: {message.file.name}")
-                            success = await download_file(client, message, target_filename, 'newspaper')
-                            if success:
-                                found_any = True
-                                found_file = True
-                                break
+                    # Log every filename to help with debugging
+                    logger.info(f"File found during search: {message.file.name}")
+                    
+                    # Check for primary format match
+                    if message.file.name.lower() == source_filename.lower():
+                        logger.info(f"Found file with primary format: {message.file.name}")
+                        success = await download_file(client, message, target_filename, 'newspaper')
+                        if success:
+                            found_any = True
+                            found_file = True
+                            break
                     
                     # Check for alternate format match if available
                     if alternate_source_filename and message.file.name.lower() == alternate_source_filename.lower():
@@ -456,19 +480,22 @@ async def check_newspaper_channel(client, channel):
                         for message in messages:
                             message_count += 1
                             
-                            if (message.file and hasattr(message.file, 'name') and message.file.name):
-                                file_name_lower = message.file.name.lower()
+                            # Skip messages without files or without name attribute
+                            if not message.file or not hasattr(message.file, 'name') or not message.file.name:
+                                continue
                                 
-                                # Log all PDF files for debugging
-                                if file_name_lower.endswith('.pdf'):
-                                    logger.info(f"Last resort checking: {message.file.name}")
-                                    
-                                    # Check which keywords match
-                                    matching_keys = [part for part in key_parts if part in file_name_lower]
-                                    matching_dates = [digit for digit in date_digits if digit in file_name_lower]
-                                    
-                                    if matching_keys and matching_dates:
-                                        logger.info(f"Potential match - Keys: {matching_keys}, Dates: {matching_dates}")
+                            file_name_lower = message.file.name.lower()
+                            
+                            # Log all PDF files for debugging
+                            if file_name_lower.endswith('.pdf'):
+                                logger.info(f"Last resort checking: {message.file.name}")
+                                
+                                # Check which keywords match
+                                matching_keys = [part for part in key_parts if part in file_name_lower]
+                                matching_dates = [digit for digit in date_digits if digit in file_name_lower]
+                                
+                                if matching_keys and matching_dates:
+                                    logger.info(f"Potential match - Keys: {matching_keys}, Dates: {matching_dates}")
                                 
                                 # Must match all key parts (publication name, edition)
                                 if all(part in file_name_lower for part in key_parts):
