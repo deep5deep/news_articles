@@ -11,6 +11,7 @@ Automated extraction and delivery of daily newspaper files from Telegram channel
 - Support for multiple email recipients
 - **Smart date format handling** - Tries different date formats (with/without leading zeros) if the initial download fails
 - Support for multiple newspaper editions (UPSC, Delhi) from the same channel
+- **Google Drive integration** - Automatically uploads downloaded files to Google Drive
 
 ## Folder Structure
 
@@ -87,6 +88,10 @@ on:
     - `EMAIL_RECEIVER` – Primary recipient's email address
     - `ADDITIONAL_EMAIL_RECEIVERS` – (Optional) Comma-separated list of additional email recipients (e.g., `person1@example.com`, `person2@example.com`)
 
+4. **Add Google Drive Secrets (for file uploads):**
+    - `GOOGLE_DRIVE_CREDENTIALS` – Your Google Service Account credentials JSON (see below)
+    - `GOOGLE_DRIVE_FOLDER_ID` – (Optional) The ID of a parent folder in Google Drive (default: creates daily folders in root)
+
 ### Setting up Gmail App Password for `EMAIL_PASSWORD`
 
 To use a Gmail account for sending emails via GitHub Actions, you must use an App Password (not your regular Gmail password):
@@ -99,6 +104,48 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
     - Click **Generate**.
     - Copy the 16-character password provided.
 2. **Update your GitHub secret**
+
+### Setting up Google Drive Service Account for `GOOGLE_DRIVE_CREDENTIALS`
+
+To set up Google Drive uploads, you need to create a Service Account and get its credentials:
+
+1. **Create a Google Cloud project:**
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+   - Create a new project or select an existing one.
+
+2. **Enable the Google Drive API:**
+   - In your project, navigate to "APIs & Services" > "Library".
+   - Search for "Google Drive API" and enable it.
+
+3. **Create a Service Account:**
+   - Go to "APIs & Services" > "Credentials".
+   - Click "Create credentials" > "Service account".
+   - Enter a name and description for your service account.
+   - Click "Create and continue".
+   - In the "Grant this service account access to project" section, add the "Editor" role.
+   - Click "Continue" and then "Done".
+
+4. **Generate Service Account Key:**
+   - In the Service Accounts list, find the one you just created.
+   - Click on the service account to view its details.
+   - Go to the "Keys" tab.
+   - Click "Add Key" > "Create new key".
+   - Choose "JSON" as the key type and click "Create".
+   - The key file will be downloaded automatically.
+
+5. **Share Drive Folder with Service Account:**
+   - If you want to use a specific folder in Google Drive:
+     - Create or select a folder in Google Drive.
+     - Right-click on the folder and select "Share".
+     - Share the folder with the email address of your service account (it ends with `@*.gserviceaccount.com`).
+     - Copy the folder ID from the URL (it's the long alphanumeric string after `/folders/` in the URL).
+     - Add this ID as the `GOOGLE_DRIVE_FOLDER_ID` GitHub secret.
+
+6. **Add Service Account Credentials to GitHub Secrets:**
+   - Open the downloaded JSON key file.
+   - Copy all of its contents.
+   - In your GitHub repository, create a new secret named `GOOGLE_DRIVE_CREDENTIALS`.
+   - Paste the entire JSON content as the value for this secret.
     - In your repo's **Settings → Secrets → Actions**, set `EMAIL_PASSWORD` to the new 16-character App Password.
 
 ## Dependencies

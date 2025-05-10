@@ -58,3 +58,13 @@ jobs:
         pip install pytz
         python send_email.py
         echo "::notice::Email delivery process completed - Indian Express and The Hindu sent separately"
+        
+    - name: Upload Files to Google Drive
+      env:
+        GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
+        GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+      run: |
+        source .venv/bin/activate
+        echo "::notice::Starting Google Drive upload process..."
+        python drive_uploader.py
+        echo "::notice::Google Drive upload process completed"
