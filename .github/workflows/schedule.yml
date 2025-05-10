@@ -60,6 +60,7 @@ jobs:
         echo "::notice::Email delivery process completed - Indian Express and The Hindu sent separately"
         
     - name: Upload Files to Google Drive
+      if: always()
       env:
         GOOGLE_DRIVE_CREDENTIALS: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS }}
         GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
