@@ -220,5 +220,5 @@ All dependencies are listed in the `requirements.txt` file.
 ## To Do
 
 - Remove additional email receivers
-- Fix th delhi format to also try format -> TH Delhi 10-05-2025  from @the_hindu_newspaper_free_pdf
+
 ---

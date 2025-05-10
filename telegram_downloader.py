@@ -68,6 +68,12 @@ channels = [
                 'target_format': 'The_Hindu_Delhi_{date}.pdf',
                 'date_format': '%d--%m',
                 'target_date_format': '%d-%m-%Y'
+            },
+            {
+                'source_format': 'TH Delhi {date}.pdf',
+                'target_format': 'The_Hindu_Delhi_{date}.pdf',
+                'date_format': '%d-%m-%Y',
+                'target_date_format': '%d-%m-%Y'
             }
         ],
         'type': 'newspaper'
