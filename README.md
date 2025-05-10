@@ -83,12 +83,14 @@ on:
     - Save the generated session string in GitHub secrets as `TELEGRAM_SESSION_STRING`.
 
 3. **Add Email Secrets (for automated delivery):**
+
     - `EMAIL_SENDER` – Sender's email address
     - `EMAIL_PASSWORD` – App password for the sender's email (see below)
     - `EMAIL_RECEIVER` – Primary recipient's email address
     - `ADDITIONAL_EMAIL_RECEIVERS` – (Optional) Comma-separated list of additional email recipients (e.g., `person1@example.com`, `person2@example.com`)
 
 4. **Add Google Drive Secrets (for file uploads):**
+
     - `GOOGLE_DRIVE_CREDENTIALS` – Your Google Service Account credentials JSON (see below)
     - `GOOGLE_DRIVE_FOLDER_ID` – (Optional) The ID of a parent folder in Google Drive (default: creates daily folders in root)
 
@@ -97,12 +99,14 @@ on:
 To use a Gmail account for sending emails via GitHub Actions, you must use an App Password (not your regular Gmail password):
 
 1. **Create an App Password**
+
     - Go to your [Google Account Security settings](https://myaccount.google.com/security).
     - Under "Signing in to Google," find **App passwords** (you may need to enable 2-Step Verification first).
     - Under "Select app," choose **Mail**.
     - Under "Select device," choose **Other (Custom name)**, and enter a name like `GitHub Actions News`.
     - Click **Generate**.
     - Copy the 16-character password provided.
+
 2. **Update your GitHub secret**
 
 ### Setting up Google Drive Service Account for `GOOGLE_DRIVE_CREDENTIALS`
@@ -110,43 +114,93 @@ To use a Gmail account for sending emails via GitHub Actions, you must use an Ap
 To set up Google Drive uploads, you need to create a Service Account and get its credentials:
 
 1. **Create a Google Cloud project:**
-   - Go to the [Google Cloud Console](https://console.cloud.google.com/).
-   - Create a new project or select an existing one.
+
+    - Go to the [Google Cloud Console](https://console.cloud.google.com/).
+    - Create a new project or select an existing one.
 
 2. **Enable the Google Drive API:**
-   - In your project, navigate to "APIs & Services" > "Library".
-   - Search for "Google Drive API" and enable it.
+
+    - In your project, navigate to "APIs & Services" > "Library".
+    - Search for "Google Drive API" and enable it.
 
 3. **Create a Service Account:**
-   - Go to "APIs & Services" > "Credentials".
-   - Click "Create credentials" > "Service account".
-   - Enter a name and description for your service account.
-   - Click "Create and continue".
-   - In the "Grant this service account access to project" section, add the "Editor" role.
-   - Click "Continue" and then "Done".
+
+    - Go to "APIs & Services" > "Credentials".
+    - Click "Create credentials" > "Service account".
+    - Enter a name and description for your service account.
+    - Click "Create and continue".
+    - In the "Grant this service account access to project" section, add the "Editor" role.
+    - Click "Continue" and then "Done".
 
 4. **Generate Service Account Key:**
-   - In the Service Accounts list, find the one you just created.
-   - Click on the service account to view its details.
-   - Go to the "Keys" tab.
-   - Click "Add Key" > "Create new key".
-   - Choose "JSON" as the key type and click "Create".
-   - The key file will be downloaded automatically.
+
+    - In the Service Accounts list, find the one you just created.
+    - Click on the service account to view its details.
+    - Go to the "Keys" tab.
+    - Click "Add Key" > "Create new key".
+    - Choose "JSON" as the key type and click "Create".
+    - The key file will be downloaded automatically.
 
 5. **Share Drive Folder with Service Account:**
-   - If you want to use a specific folder in Google Drive:
-     - Create or select a folder in Google Drive.
-     - Right-click on the folder and select "Share".
-     - Share the folder with the email address of your service account (it ends with `@*.gserviceaccount.com`).
-     - Copy the folder ID from the URL (it's the long alphanumeric string after `/folders/` in the URL).
-     - Add this ID as the `GOOGLE_DRIVE_FOLDER_ID` GitHub secret.
+
+    - If you want to use a specific folder in Google Drive:
+        - Create or select a folder in Google Drive.
+        - Right-click on the folder and select "Share".
+        - Share the folder with the email address of your service account (it ends with `@*.gserviceaccount.com`).
+        - Copy the folder ID from the URL (it's the long alphanumeric string after `/folders/` in the URL).
+        - Add this ID as the `GOOGLE_DRIVE_FOLDER_ID` GitHub secret.
 
 6. **Add Service Account Credentials to GitHub Secrets:**
-   - Open the downloaded JSON key file.
-   - Copy all of its contents.
-   - In your GitHub repository, create a new secret named `GOOGLE_DRIVE_CREDENTIALS`.
-   - Paste the entire JSON content as the value for this secret.
+
+    - Open the downloaded JSON key file.
+    - Copy all of its contents.
+    - In your GitHub repository, create a new secret named `GOOGLE_DRIVE_CREDENTIALS`.
+    - Paste the entire JSON content as the value for this secret.
     - In your repo's **Settings → Secrets → Actions**, set `EMAIL_PASSWORD` to the new 16-character App Password.
+
+## Google Drive Service Credentials & Folder ID Setup
+
+To enable Google Drive uploads, you must create a Google Service Account, enable the Drive API, and add the credentials and (optionally) a folder ID to your GitHub Actions secrets.
+
+### 1. Create a Google Cloud Project
+
+- Go to the [Google Cloud Console](https://console.cloud.google.com/).
+- Create a new project or select an existing one.
+
+### 2. Enable the Google Drive API
+
+- In your project, go to "APIs & Services" > "Library".
+- Search for "Google Drive API" and enable it.
+
+### 3. Create a Service Account
+
+- Go to "APIs & Services" > "Credentials".
+- Click "Create Credentials" > "Service account".
+- Enter a name and description, click "Create and Continue".
+- Grant the "Editor" role, click "Continue" and then "Done".
+
+### 4. Generate a Service Account Key
+
+- In the Service Accounts list, click your new service account.
+- Go to the "Keys" tab.
+- Click "Add Key" > "Create new key" > select "JSON" > "Create".
+- Download and save the JSON key file securely.
+
+### 5. Share Your Google Drive Folder (Optional)
+
+- In Google Drive, create/select a folder for uploads.
+- Right-click > "Share" > add your service account email (from the JSON, ends with `@<project>.iam.gserviceaccount.com`).
+- Set as "Editor".
+- Copy the folder ID from the URL (the long string after `/folders/`).
+
+### 6. Add Secrets to GitHub Actions
+
+- Go to your repo: **Settings → Secrets and variables → Actions**.
+- Click "New repository secret" for each:
+  - `GOOGLE_DRIVE_CREDENTIALS`: Paste the entire JSON key file content.
+  - `GOOGLE_DRIVE_FOLDER_ID`: (Optional) Paste the folder ID from step 5.
+
+Once set, your workflow will be able to upload files to Google Drive, organized by date, inside the specified folder if provided.
 
 ## Dependencies
 
@@ -166,7 +220,5 @@ All dependencies are listed in the `requirements.txt` file.
 ## To Do
 
 - Remove additional email receivers
-- Convert the uploaded files to google docs
 - Fix th delhi format to also try format -> TH Delhi 10-05-2025  from @the_hindu_newspaper_free_pdf
-- Add documentation for serice credentials and folder id, howw to create them and add it to github actions
 ---
