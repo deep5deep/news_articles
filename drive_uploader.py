@@ -133,7 +133,7 @@ def create_dated_folder(service, folder_name):
         ).execute()
         
         folder_id = folder.get('id')
-        logger.info(f"Created folder {folder_name} in Google Drive with ID: {folder_id}")
+        logger.info(f"Created dated folder '{folder_name}' in Google Drive with ID: {folder_id}")
         return folder_id
         
     except Exception as e:
@@ -157,13 +157,30 @@ def upload_files_to_drive(directory_path, parent_folder_id=None, file_filter=Non
     service = setup_drive_service()
     if not service:
         return 0
-        
-    # Create a dated folder if no parent folder specified
-    if not parent_folder_id:
-        today_str = datetime.now().strftime('%d-%m-%Y')
-        parent_folder_id = create_dated_folder(service, today_str)
-        if not parent_folder_id:
-            return 0
+    
+    # Create a dated folder
+    today_str = datetime.now().strftime('%d-%m-%Y')
+    
+    # If parent_folder_id provided, create dated subfolder inside it
+    # If not, create dated folder at root level
+    dated_folder_id = create_dated_folder(service, today_str)
+    if not dated_folder_id:
+        return 0
+    
+    # If parent_folder_id exists, move the dated folder inside it
+    if parent_folder_id:
+        try:
+            # Update the dated folder to be a child of the parent folder
+            service.files().update(
+                fileId=dated_folder_id,
+                addParents=parent_folder_id,
+                removeParents='root',
+                fields='id, parents'
+            ).execute()
+            logger.info(f"Moved dated folder {today_str} into parent folder {parent_folder_id}")
+        except Exception as e:
+            logger.error(f"Error moving dated folder into parent: {e}")
+            # Continue with upload even if move fails
     
     # Get list of files in directory
     files = [f for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
@@ -176,11 +193,11 @@ def upload_files_to_drive(directory_path, parent_folder_id=None, file_filter=Non
     successful_uploads = 0
     for file_name in files:
         file_path = os.path.join(directory_path, file_name)
-        file_id = upload_file_to_drive(service, file_path, parent_folder_id)
+        file_id = upload_file_to_drive(service, file_path, dated_folder_id)
         if file_id:
             successful_uploads += 1
     
-    logger.info(f"Uploaded {successful_uploads} files to Google Drive")
+    logger.info(f"Uploaded {successful_uploads} files to Google Drive in folder '{today_str}'")
     return successful_uploads
 
 # Example usage 
