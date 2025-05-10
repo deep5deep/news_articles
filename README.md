@@ -165,7 +165,8 @@ All dependencies are listed in the `requirements.txt` file.
 
 ## To Do
 
-- Change email sender and email password in GitHub secrets
-- Upload it to Google Drive
-
+- Remove additional email receivers
+- Convert the uploaded files to google docs
+- Fix th delhi format to also try format -> TH Delhi 10-05-2025  from @the_hindu_newspaper_free_pdf
+- Add documentation for serice credentials and folder id, howw to create them and add it to github actions
 ---

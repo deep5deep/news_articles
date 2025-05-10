@@ -110,6 +110,42 @@ def upload_file_to_drive(service, file_path, parent_folder_id=None):
         logger.error(f"Error uploading {os.path.basename(file_path)} to Google Drive: {e}")
         return None
 
+def upload_file_as_gdoc(service, file_path, parent_folder_id=None):
+    """
+    Upload a file to Google Drive and request conversion to Google Docs format.
+    Args:
+        service: Google Drive API service instance
+        file_path: Path to the file to upload
+        parent_folder_id: ID of the parent folder in Google Drive (optional)
+    Returns:
+        File ID if successful, None otherwise
+    """
+    try:
+        file_name = os.path.basename(file_path)
+        ext = os.path.splitext(file_name)[1].lower()
+        # Map extensions to Google Docs mimeTypes
+        if ext in ['.txt', '.doc', '.docx', '.pdf', '.rtf', '.odt']:
+            gdoc_mime = 'application/vnd.google-apps.document'
+        elif ext in ['.jpg', '.jpeg', '.png']:
+            gdoc_mime = 'application/vnd.google-apps.document'  # Google will OCR images
+        else:
+            return None  # Skip unsupported types for conversion
+        file_metadata = {'name': file_name + '_gdoc', 'mimeType': gdoc_mime}
+        if parent_folder_id:
+            file_metadata['parents'] = [parent_folder_id]
+        media = MediaFileUpload(file_path, resumable=True)
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+        file_id = file.get('id')
+        logger.info(f"Uploaded {file_name} as Google Doc to Drive with ID: {file_id}")
+        return file_id
+    except Exception as e:
+        logger.error(f"Error uploading {os.path.basename(file_path)} as Google Doc: {e}")
+        return None
+
 def create_dated_folder(service, folder_name):
     """
     Create a folder in Google Drive with the specified name.
@@ -191,14 +227,19 @@ def upload_files_to_drive(directory_path, parent_folder_id=None, file_filter=Non
     
     # Upload each file
     successful_uploads = 0
+    gdoc_uploads = 0
     for file_name in files:
         file_path = os.path.join(directory_path, file_name)
         file_id = upload_file_to_drive(service, file_path, dated_folder_id)
         if file_id:
             successful_uploads += 1
+        # Try uploading as Google Doc if supported
+        gdoc_id = upload_file_as_gdoc(service, file_path, dated_folder_id)
+        if gdoc_id:
+            gdoc_uploads += 1
     
-    logger.info(f"Uploaded {successful_uploads} files to Google Drive in folder '{today_str}'")
-    return successful_uploads
+    logger.info(f"Uploaded {successful_uploads} original files and {gdoc_uploads} Google Docs to Google Drive in folder '{today_str}'")
+    return successful_uploads + gdoc_uploads
 
 # Example usage 
 if __name__ == "__main__":
